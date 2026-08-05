@@ -133,10 +133,36 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
     setTimeout(() => setCopiedLink(false), 3000);
   };
 
-  // Share WhatsApp
+  // Share handlers
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(`*${article.title}*\n${window.location.href}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    storage.incrementShares(article.id);
+  };
+
+  const handleShareFacebook = () => {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+    storage.incrementShares(article.id);
+  };
+
+  const handleShareTwitter = () => {
+    const text = encodeURIComponent(article.title);
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+    storage.incrementShares(article.id);
+  };
+
+  const handleShareTelegram = () => {
+    const text = encodeURIComponent(article.title);
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+    storage.incrementShares(article.id);
+  };
+
+  const handleShareLinkedIn = () => {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
     storage.incrementShares(article.id);
   };
 
@@ -337,8 +363,38 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
               </button>
             </div>
 
-            {/* Bookmark & Share */}
-            <div className="flex items-center gap-2 border-l border-zinc-200 pl-4">
+            {/* Quick Share Buttons */}
+            <div className="flex items-center gap-1.5 border-l border-zinc-200 pl-3">
+              <button
+                onClick={handleShareWhatsApp}
+                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                title="Compartilhar no WhatsApp"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 001.333 4.993L2 22l5.233-1.237a9.994 9.994 0 004.779 1.217h.004c5.505 0 9.988-4.478 9.989-9.985A9.962 9.962 0 0012.012 2zm5.83 14.284c-.244.686-1.42 1.309-1.96 1.365-.498.052-1.15.074-3.308-.781-2.759-1.092-4.528-3.873-4.664-4.053-.136-.182-1.112-1.482-1.112-2.827 0-1.346.702-2.008.952-2.28.249-.272.543-.34.724-.34.181 0 .362.002.521.01.168.008.396-.064.62.474.226.543.769 1.88.837 2.016.068.136.113.295.023.475-.09.181-.136.294-.271.452-.136.158-.286.353-.408.475-.136.136-.278.284-.12.556.158.272.702 1.158 1.507 1.874 1.034.921 1.905 1.206 2.176 1.342.271.136.43.113.588-.068.158-.181.678-.792.859-1.063.181-.272.362-.226.61-.136.249.09 1.583.746 1.854.882.271.136.452.203.52.317.068.113.068.656-.176 1.342z"/>
+                </svg>
+              </button>
+
+              <button
+                onClick={handleShareFacebook}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                title="Compartilhar no Facebook"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/>
+                </svg>
+              </button>
+
+              <button
+                onClick={handleShareTwitter}
+                className="p-2 text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors"
+                title="Compartilhar no X (Twitter)"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+              </button>
+
               <button
                 onClick={handleCopyLink}
                 className={`p-2 rounded-md transition-colors ${
@@ -347,14 +403,6 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                 title="Copiar Link da Matéria"
               >
                 {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-              </button>
-
-              <button
-                onClick={handleShareWhatsApp}
-                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
-                title="Compartilhar no WhatsApp"
-              >
-                <Send className="w-4 h-4" />
               </button>
 
               <button
@@ -440,6 +488,101 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
               ))}
             </div>
           )}
+
+          {/* Prominent Social Media Sharing Section */}
+          <div className="pt-6 border-t border-zinc-200/80 space-y-3">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-red-600" />
+              <h4 className="text-xs font-extrabold uppercase text-zinc-800 tracking-wider">
+                Compartilhe esta notícia nas redes sociais
+              </h4>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-1">
+              {/* WhatsApp */}
+              <button
+                onClick={handleShareWhatsApp}
+                className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 px-3 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                title="Compartilhar no WhatsApp"
+              >
+                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 001.333 4.993L2 22l5.233-1.237a9.994 9.994 0 004.779 1.217h.004c5.505 0 9.988-4.478 9.989-9.985A9.962 9.962 0 0012.012 2zm5.83 14.284c-.244.686-1.42 1.309-1.96 1.365-.498.052-1.15.074-3.308-.781-2.759-1.092-4.528-3.873-4.664-4.053-.136-.182-1.112-1.482-1.112-2.827 0-1.346.702-2.008.952-2.28.249-.272.543-.34.724-.34.181 0 .362.002.521.01.168.008.396-.064.62.474.226.543.769 1.88.837 2.016.068.136.113.295.023.475-.09.181-.136.294-.271.452-.136.158-.286.353-.408.475-.136.136-.278.284-.12.556.158.272.702 1.158 1.507 1.874 1.034.921 1.905 1.206 2.176 1.342.271.136.43.113.588-.068.158-.181.678-.792.859-1.063.181-.272.362-.226.61-.136.249.09 1.583.746 1.854.882.271.136.452.203.52.317.068.113.068.656-.176 1.342z"/>
+                </svg>
+                <span>WhatsApp</span>
+              </button>
+
+              {/* Facebook */}
+              <button
+                onClick={handleShareFacebook}
+                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2.5 px-3 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                title="Compartilhar no Facebook"
+              >
+                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/>
+                </svg>
+                <span>Facebook</span>
+              </button>
+
+              {/* X / Twitter */}
+              <button
+                onClick={handleShareTwitter}
+                className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-black text-white font-bold text-xs py-2.5 px-3 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                title="Compartilhar no X"
+              >
+                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                <span>X / Twitter</span>
+              </button>
+
+              {/* Telegram */}
+              <button
+                onClick={handleShareTelegram}
+                className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs py-2.5 px-3 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                title="Compartilhar no Telegram"
+              >
+                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                <span>Telegram</span>
+              </button>
+
+              {/* LinkedIn */}
+              <button
+                onClick={handleShareLinkedIn}
+                className="flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs py-2.5 px-3 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                title="Compartilhar no LinkedIn"
+              >
+                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/>
+                </svg>
+                <span>LinkedIn</span>
+              </button>
+
+              {/* Copy Link */}
+              <button
+                onClick={handleCopyLink}
+                className={`flex items-center justify-center gap-2 font-bold text-xs py-2.5 px-3 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 ${
+                  copiedLink
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-800'
+                }`}
+                title="Copiar link"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4 text-zinc-700 shrink-0" />
+                    <span>Copiar Link</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Reader Comments Section */}

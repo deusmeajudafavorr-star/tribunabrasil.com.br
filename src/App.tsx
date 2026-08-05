@@ -156,6 +156,28 @@ export default function App() {
     };
   }, [articles, viewMode]);
 
+  // Dynamic Google Analytics Pageview Tracking (SPA navigation)
+  useEffect(() => {
+    if (typeof (window as any).gtag === 'function') {
+      const pagePath =
+        viewMode === 'article' && selectedArticle
+          ? `/#noticia/${selectedArticle.slug || selectedArticle.id}`
+          : viewMode === 'admin'
+          ? '/#painel'
+          : '/';
+
+      const pageTitle =
+        viewMode === 'article' && selectedArticle
+          ? `${selectedArticle.title} - Tribuna Brasil`
+          : 'Tribuna Brasil - Portal de Notícias';
+
+      (window as any).gtag('config', 'G-Y5M37CPB9Z', {
+        page_path: pagePath,
+        page_title: pageTitle,
+      });
+    }
+  }, [viewMode, selectedArticle]);
+
   // Handlers
   const handleOpenArticle = (article: Article) => {
     setSelectedArticle(article);

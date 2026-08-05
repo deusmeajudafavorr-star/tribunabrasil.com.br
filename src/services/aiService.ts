@@ -1,5 +1,5 @@
 export async function callAIAssistant(payload: {
-  action: 'generate_title' | 'summarize' | 'suggest_tags' | 'proofread' | 'generate_draft';
+  action: 'generate_title' | 'summarize' | 'suggest_tags' | 'proofread' | 'generate_draft' | 'translate';
   prompt?: string;
   title?: string;
   content?: string;

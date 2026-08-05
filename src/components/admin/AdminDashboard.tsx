@@ -365,7 +365,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // AI Call Handlers
-  const handleCallAI = async (action: 'generate_title' | 'summarize' | 'suggest_tags' | 'proofread' | 'generate_draft') => {
+  const handleCallAI = async (action: 'generate_title' | 'summarize' | 'suggest_tags' | 'proofread' | 'generate_draft' | 'translate') => {
     setAiLoading(true);
     setAiSuggestions(null);
     try {
@@ -382,6 +382,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (action === 'summarize' && res && editingArticle) {
         setEditingArticle({ ...editingArticle, subtitle: res.replace(/^["']|["']$/g, '').trim() });
       } else if (action === 'generate_draft' && res && editingArticle) {
+        setEditingArticle({ ...editingArticle, content: res });
+      } else if (action === 'translate' && res && editingArticle) {
         setEditingArticle({ ...editingArticle, content: res });
       }
     } catch (err: any) {
@@ -1040,6 +1042,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="bg-zinc-800 hover:bg-red-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <Wand2 className="w-3 h-3 text-amber-400" /> Revisar e Corrigir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCallAI('translate')}
+                  disabled={aiLoading}
+                  className="bg-zinc-800 hover:bg-red-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Traduzir matéria de Inglês para Português (PT-BR) com IA"
+                >
+                  <Globe className="w-3 h-3 text-amber-400" /> Traduzir (EN ➔ PT-BR)
                 </button>
               </div>
 

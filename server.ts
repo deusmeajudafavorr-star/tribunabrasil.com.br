@@ -48,6 +48,58 @@ async function startServer() {
     }
   }
 
+  // Helper function to translate article from English to pt-BR using Gemini AI
+  async function translateArticleToPortuguese(
+    rawTitle: string,
+    description: string,
+    content: string
+  ): Promise<{ title: string; subtitle: string; content: string }> {
+    if (!process.env.GEMINI_API_KEY) {
+      return { title: rawTitle, subtitle: description, content };
+    }
+
+    try {
+      const prompt = `Traduza a seguinte notícia jornalística do inglês para o português do Brasil com linguagem jornalística elegante, clara e profissional para o portal Tribuna Brasil:
+
+TÍTULO ORIGINAL EM INGLÊS:
+${rawTitle}
+
+RESUMO/SUBTÍTULO ORIGINAL EM INGLÊS:
+${description}
+
+CONTEÚDO ORIGINAL EM INGLÊS:
+${content}
+
+Responda ESTRITAMENTE em formato JSON VÁLIDO sem marcações markdown extra com o seguinte formato:
+{
+  "title": "Título traduzido e adaptado em Português do Brasil",
+  "subtitle": "Subtítulo de 1 a 2 frases traduzido em Português do Brasil",
+  "content": "Texto do artigo traduzido e bem estruturado em parágrafos em Português do Brasil"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.3,
+        },
+      });
+
+      const jsonStr = response.text || "";
+      const parsed = JSON.parse(jsonStr);
+
+      return {
+        title: parsed.title || rawTitle,
+        subtitle: parsed.subtitle || description,
+        content: parsed.content || content,
+      };
+    } catch (e) {
+      console.error("Erro ao traduzir notícia com Gemini:", e);
+      return { title: rawTitle, subtitle: description, content };
+    }
+  }
+
   // Get current rate limit status
   app.get("/api/news/wsj/status", (_req, res) => {
     checkAndResetDailyLimit();
@@ -106,48 +158,58 @@ async function startServer() {
       const data = await response.json();
       const articlesList = data.articles || data.artigos || [];
 
-      const mappedArticles = articlesList.map((item: any, index: number) => {
-        const rawTitle = item.title || item.título || "Notícia Wall Street Journal";
-        const cleanSlug = rawTitle
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]/g, "-")
-          .replace(/-+/g, "-")
-          .replace(/^-|-$/g, "");
+      // Automatically translate all articles to Brazilian Portuguese
+      const mappedArticles = await Promise.all(
+        articlesList.map(async (item: any, index: number) => {
+          const rawTitle = item.title || item.título || "Notícia Wall Street Journal";
+          const authorName = item.author || item.autor || "Correspondente WSJ";
+          const description =
+            item.description || item.descrição || item.content || "Reportagem exclusiva publicada pelo The Wall Street Journal.";
+          const publishedAt = item.publishedAt || item["publicado em"] || new Date().toISOString();
+          const imageUrl =
+            item.urlToImage || item.urlParaImagem || "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200";
 
-        const authorName = item.author || item.autor || "Correspondente WSJ";
-        const description =
-          item.description || item.descrição || item.content || "Reportagem exclusiva publicada pelo The Wall Street Journal.";
-        const publishedAt = item.publishedAt || item["publicado em"] || new Date().toISOString();
-        const imageUrl =
-          item.urlToImage || item.urlParaImagem || "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200";
+          const articleContent = item.content || item.contente || description;
 
-        const articleContent = item.content || item.contente || description;
+          // Auto-translate using Gemini 3.6 Flash
+          const translated = await translateArticleToPortuguese(rawTitle, description, articleContent);
 
-        return {
-          id: `art-wsj-${Date.now()}-${index}`,
-          title: rawTitle,
-          subtitle: description.length > 180 ? description.slice(0, 177) + "..." : description,
-          slug: cleanSlug || `wsj-noticia-${index}`,
-          categoryId: "cat-mundo",
-          categoryName: "Mundo",
-          authorId: "user-wsj",
-          authorName: "Correspondente Wall Street Journal",
-          authorAvatar: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=200",
-          coverImage: imageUrl,
-          imageCaption: `Foto/crédito: The Wall Street Journal (${authorName})`,
-          imageCredit: "The Wall Street Journal",
-          excerpt: description,
-          content: `${description}\n\n### Reportagem do The Wall Street Journal\n\n${articleContent}\n\n> Matéria original publicada no portal The Wall Street Journal por ${authorName}.\n\nPara ler a matéria completa em inglês no site do parceiro, [clique aqui para acessar o The Wall Street Journal](${item.url || item.URL || "https://www.wsj.com"}).`,
-          publishedAt: publishedAt,
-          status: "published",
-          isFeatured: false,
-          views: Math.floor(Math.random() * 800) + 150,
-          shares: Math.floor(Math.random() * 120) + 15,
-          tags: ["WSJ", "Wall Street Journal", "Internacional", "Mundo", "Notícias"],
-        };
-      });
+          const finalTitle = translated.title;
+          const finalSubtitle = translated.subtitle;
+          const finalContent = translated.content;
+
+          const cleanSlug = finalTitle
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "-")
+            .replace(/-+/g, "-")
+            .replace(/^-|-$/g, "");
+
+          return {
+            id: `art-wsj-${Date.now()}-${index}`,
+            title: finalTitle,
+            subtitle: finalSubtitle.length > 180 ? finalSubtitle.slice(0, 177) + "..." : finalSubtitle,
+            slug: cleanSlug || `wsj-noticia-${index}`,
+            categoryId: "cat-mundo",
+            categoryName: "Mundo",
+            authorId: "user-wsj",
+            authorName: "Correspondente Wall Street Journal",
+            authorAvatar: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=200",
+            coverImage: imageUrl,
+            imageCaption: `Foto/crédito: The Wall Street Journal (${authorName})`,
+            imageCredit: "The Wall Street Journal",
+            excerpt: finalSubtitle,
+            content: `${finalSubtitle}\n\n### Reportagem do The Wall Street Journal\n\n${finalContent}\n\n> Matéria original do The Wall Street Journal (por ${authorName}), traduzida e adaptada para o Português pela redação do Tribuna Brasil.\n\nPara ler a publicação original em inglês no site do parceiro, [clique aqui para acessar o The Wall Street Journal](${item.url || item.URL || "https://www.wsj.com"}).`,
+            publishedAt: publishedAt,
+            status: "published",
+            isFeatured: false,
+            views: Math.floor(Math.random() * 800) + 150,
+            shares: Math.floor(Math.random() * 120) + 15,
+            tags: ["WSJ", "Wall Street Journal", "Internacional", "Mundo", "Notícias"],
+          };
+        })
+      );
 
       return res.json({
         success: true,
@@ -213,8 +275,14 @@ ${content || prompt}`;
           break;
 
         case "generate_draft":
-          fullPrompt = `Escreva um rascunho de matéria jornalística completa em estilo do portal Metrópoles sobre o tema: "${prompt}".
+          fullPrompt = `Escreva um rascunho de matéria jornalística completa em estilo do portal Tribuna Brasil sobre o tema: "${prompt}".
 A matéria deve ter título chamativo, subtítulo explicativo e 3 a 4 parágrafos bem estruturados com informações contextuais relevantes.`;
+          break;
+
+        case "translate":
+          fullPrompt = `Traduza e reescreva o seguinte artigo/notícia do Inglês para o Português do Brasil com linguagem jornalística impecável, elegante e concisa do portal Tribuna Brasil:
+Título: ${title || ""}
+Conteúdo: ${content || prompt}`;
           break;
 
         default:

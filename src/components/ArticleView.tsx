@@ -56,6 +56,13 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
     // Initial load comments
     setComments(storage.getComments(article.id));
 
+    // Update URL Hash to ensure specific article route
+    const slug = article.slug || article.id;
+    const expectedHash = `#noticia/${slug}`;
+    if (window.location.hash !== expectedHash) {
+      window.location.hash = expectedHash;
+    }
+
     // Subscribe to Firebase comments in real time
     const unsubscribe = subscribeComments(article.id, (remoteComments) => {
       if (remoteComments && remoteComments.length > 0) {
@@ -73,7 +80,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
         window.speechSynthesis.cancel();
       }
     };
-  }, [article.id]);
+  }, [article.id, article.slug]);
 
 
   // Audio Player Handler
@@ -125,9 +132,16 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
     }
   };
 
+  // Helper for generating shareable URL for the article
+  const getArticleShareUrl = () => {
+    const slug = article.slug || article.id;
+    return `${window.location.origin}${window.location.pathname}#noticia/${slug}`;
+  };
+
   // Copy Link
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const shareableUrl = getArticleShareUrl();
+    navigator.clipboard.writeText(shareableUrl);
     setCopiedLink(true);
     storage.incrementShares(article.id);
     setTimeout(() => setCopiedLink(false), 3000);
@@ -135,33 +149,34 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
 
   // Share handlers
   const handleShareWhatsApp = () => {
-    const text = encodeURIComponent(`*${article.title}*\n${window.location.href}`);
+    const shareableUrl = getArticleShareUrl();
+    const text = encodeURIComponent(`*${article.title}*\n${shareableUrl}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
     storage.incrementShares(article.id);
   };
 
   const handleShareFacebook = () => {
-    const url = encodeURIComponent(window.location.href);
+    const url = encodeURIComponent(getArticleShareUrl());
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
     storage.incrementShares(article.id);
   };
 
   const handleShareTwitter = () => {
     const text = encodeURIComponent(article.title);
-    const url = encodeURIComponent(window.location.href);
+    const url = encodeURIComponent(getArticleShareUrl());
     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
     storage.incrementShares(article.id);
   };
 
   const handleShareTelegram = () => {
     const text = encodeURIComponent(article.title);
-    const url = encodeURIComponent(window.location.href);
+    const url = encodeURIComponent(getArticleShareUrl());
     window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
     storage.incrementShares(article.id);
   };
 
   const handleShareLinkedIn = () => {
-    const url = encodeURIComponent(window.location.href);
+    const url = encodeURIComponent(getArticleShareUrl());
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
     storage.incrementShares(article.id);
   };

@@ -30,28 +30,6 @@ export default function App() {
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    // Check URL query parameter or hash for hidden route disguise (e.g. #ferias or #feiras or ?painel=ferias)
-    const checkHiddenRoute = () => {
-      const hash = window.location.hash.toLowerCase();
-      const params = new URLSearchParams(window.location.search);
-      if (
-        hash === '#ferias' ||
-        hash === '#feiras' ||
-        params.get('painel') === 'ferias' ||
-        params.get('painel') === 'feiras' ||
-        params.get('rota') === 'ferias' ||
-        params.get('rota') === 'feiras'
-      ) {
-        setViewMode('admin');
-      }
-    };
-
-    checkHiddenRoute();
-    window.addEventListener('hashchange', checkHiddenRoute);
-    return () => window.removeEventListener('hashchange', checkHiddenRoute);
-  }, []);
-
   // Initial Data Load & Firebase Subscriptions
   const loadData = () => {
     const loadedArticles = storage.getArticles();
@@ -100,19 +78,107 @@ export default function App() {
     };
   }, []);
 
+  // Route Synchronization from URL Hash / Search Params
+  useEffect(() => {
+    const syncRouteFromUrl = () => {
+      const rawHash = window.location.hash;
+      const hash = rawHash.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+
+      // 1. Admin route
+      if (
+        hash === '#ferias' ||
+        hash === '#feiras' ||
+        params.get('painel') === 'ferias' ||
+        params.get('painel') === 'feiras' ||
+        params.get('rota') === 'ferias' ||
+        params.get('rota') === 'feiras'
+      ) {
+        setViewMode('admin');
+        return;
+      }
+
+      // 2. Article route detection
+      let targetSlugOrId = '';
+      const queryTarget =
+        params.get('noticia') ||
+        params.get('materia') ||
+        params.get('article') ||
+        params.get('id');
+
+      if (queryTarget) {
+        targetSlugOrId = queryTarget.trim();
+      } else if (rawHash && rawHash !== '#' && rawHash !== '#home') {
+        const cleanHash = rawHash.replace(/^#\/?/, ''); // e.g. "noticia/slug" or "materia/slug" or "slug"
+        if (cleanHash.startsWith('noticia/')) {
+          targetSlugOrId = cleanHash.replace(/^noticia\//, '');
+        } else if (cleanHash.startsWith('materia/')) {
+          targetSlugOrId = cleanHash.replace(/^materia\//, '');
+        } else if (cleanHash.startsWith('article/')) {
+          targetSlugOrId = cleanHash.replace(/^article\//, '');
+        } else if (cleanHash !== 'ferias' && cleanHash !== 'feiras') {
+          targetSlugOrId = cleanHash;
+        }
+      }
+
+      if (targetSlugOrId && articles.length > 0) {
+        const decodedTarget = decodeURIComponent(targetSlugOrId).toLowerCase().trim();
+        const found = articles.find(
+          (a) =>
+            a.slug?.toLowerCase().trim() === decodedTarget ||
+            a.id?.toLowerCase().trim() === decodedTarget ||
+            a.slug?.toLowerCase().trim() === decodedTarget.replace(/^noticia-/, '')
+        );
+
+        if (found) {
+          setSelectedArticle(found);
+          setViewMode('article');
+          return;
+        }
+      }
+
+      // Default to home if hash is empty or #home
+      if (!rawHash || rawHash === '#' || rawHash === '#home') {
+        setViewMode((prev) => (prev === 'admin' ? 'admin' : 'home'));
+        if (viewMode !== 'admin') {
+          setSelectedArticle(null);
+        }
+      }
+    };
+
+    syncRouteFromUrl();
+    window.addEventListener('hashchange', syncRouteFromUrl);
+    window.addEventListener('popstate', syncRouteFromUrl);
+
+    return () => {
+      window.removeEventListener('hashchange', syncRouteFromUrl);
+      window.removeEventListener('popstate', syncRouteFromUrl);
+    };
+  }, [articles, viewMode]);
+
   // Handlers
   const handleOpenArticle = (article: Article) => {
     setSelectedArticle(article);
     setViewMode('article');
+    const slug = article.slug || article.id;
+    if (window.location.hash !== `#noticia/${slug}`) {
+      window.location.hash = `noticia/${slug}`;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNavigateHome = () => {
     setViewMode('home');
     setSelectedArticle(null);
+    if (window.location.hash && !window.location.hash.toLowerCase().includes('ferias')) {
+      history.pushState('', document.title, window.location.pathname + window.location.search);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenAdmin = () => {
     setViewMode('admin');
+    window.location.hash = 'ferias';
   };
 
   const handleAdminLoginSuccess = () => {
@@ -124,6 +190,9 @@ export default function App() {
     setActiveCategoryId(catId);
     if (viewMode === 'article') {
       setViewMode('home');
+      if (window.location.hash && !window.location.hash.toLowerCase().includes('ferias')) {
+        history.pushState('', document.title, window.location.pathname + window.location.search);
+      }
     }
   };
 

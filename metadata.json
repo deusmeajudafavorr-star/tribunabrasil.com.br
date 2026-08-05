@@ -1,0 +1,6 @@
+{
+  "name": "Tribuna Brasil - Portal de Notícias",
+  "description": "Portal de notícias completo e dinâmico com área administrativa para gestão autônoma de publicações, categorias e usuários.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

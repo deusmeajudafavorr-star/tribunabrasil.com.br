@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { Article, Category } from '../types';
+import { SidebarAdBanner } from './SidebarAdBanner';
 
 interface NewsHomeProps {
   articles: Article[];
@@ -201,8 +202,11 @@ export const NewsHome: React.FC<NewsHomeProps> = ({
           )}
         </div>
 
-        {/* Right Sidebar: "Mais Lidas" Ranking + Special Box */}
+        {/* Right Sidebar: Banner Ad + "Mais Lidas" Ranking + Special Box */}
         <aside className="lg:col-span-4 space-y-6">
+          {/* Sidebar Banner Ad */}
+          <SidebarAdBanner />
+
           {/* "Mais Lidas" Card */}
           <div className="bg-white rounded-md border border-zinc-200 p-5 shadow-xs">
             <div className="flex items-center justify-between pb-3 mb-4 border-b-2 border-red-600">

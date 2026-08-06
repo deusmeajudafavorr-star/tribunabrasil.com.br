@@ -6,6 +6,7 @@ import { ArticleView } from './components/ArticleView';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { Footer } from './components/Footer';
+import { FooterAdBanner } from './components/FooterAdBanner';
 import { storage } from './services/storage';
 import {
   seedInitialDataIfEmpty,
@@ -314,13 +315,16 @@ export default function App() {
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer & Footer Ad Banner */}
       {viewMode !== 'admin' && (
-        <Footer
-          categories={categories}
-          onSelectCategory={handleSelectCategory}
-          onOpenAdmin={handleOpenAdmin}
-        />
+        <>
+          <FooterAdBanner />
+          <Footer
+            categories={categories}
+            onSelectCategory={handleSelectCategory}
+            onOpenAdmin={handleOpenAdmin}
+          />
+        </>
       )}
     </div>
   );

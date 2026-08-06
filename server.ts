@@ -1,8 +1,10 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { INITIAL_ARTICLES } from "./src/data/initialData";
 
 dotenv.config();
 
@@ -309,6 +311,82 @@ Conteúdo: ${content || prompt}`;
     }
   });
 
+  // Helper to inject dynamic Open Graph meta tags into index.html for social media crawlers
+  function renderHtmlWithMeta(req: express.Request, rawHtml: string): string {
+    const urlPath = req.path;
+    const query = req.query;
+
+    let targetSlug = "";
+    if (urlPath.startsWith("/noticia/")) {
+      targetSlug = urlPath.replace("/noticia/", "").trim();
+    } else if (urlPath.startsWith("/materia/")) {
+      targetSlug = urlPath.replace("/materia/", "").trim();
+    } else if (urlPath.startsWith("/article/")) {
+      targetSlug = urlPath.replace("/article/", "").trim();
+    } else if (query.noticia) {
+      targetSlug = String(query.noticia).trim();
+    } else if (query.materia) {
+      targetSlug = String(query.materia).trim();
+    } else if (query.slug) {
+      targetSlug = String(query.slug).trim();
+    }
+
+    if (!targetSlug) {
+      return rawHtml;
+    }
+
+    try {
+      targetSlug = decodeURIComponent(targetSlug).toLowerCase().trim();
+    } catch {
+      targetSlug = targetSlug.toLowerCase().trim();
+    }
+
+    const matchedArticle = INITIAL_ARTICLES.find(
+      (a) =>
+        a.slug?.toLowerCase() === targetSlug ||
+        a.id?.toLowerCase() === targetSlug ||
+        a.slug?.toLowerCase() === targetSlug.replace(/^noticia-/, '')
+    );
+
+    if (!matchedArticle) {
+      return rawHtml;
+    }
+
+    const title = `${matchedArticle.title} - Tribuna Brasil`;
+    const description = (matchedArticle.subtitle || matchedArticle.excerpt || matchedArticle.title)
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, ' ');
+    const image = matchedArticle.coverImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+    const host = req.get('host') || 'tribunabrasil-com-br.vercel.app';
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const fullUrl = `${protocol}://${host}/noticia/${matchedArticle.slug || matchedArticle.id}`;
+
+    let html = rawHtml;
+
+    // Replace Title
+    html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
+
+    // Inject or override Open Graph Meta Tags
+    const ogTags = `
+    <!-- Dynamic Article Open Graph Meta Tags for Social Media Crawlers -->
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Tribuna Brasil" />
+    <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="${fullUrl}" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:image" content="${image}" />
+    `;
+
+    return html.replace('</head>', `${ogTags}\n  </head>`);
+  }
+
   // Serve static assets or mount Vite dev middleware
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -319,8 +397,11 @@ Conteúdo: ${content || prompt}`;
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+    app.get("*", (req, res) => {
+      const distIndexPath = path.join(distPath, "index.html");
+      const rawHtml = fs.existsSync(distIndexPath) ? fs.readFileSync(distIndexPath, "utf-8") : "";
+      const finalHtml = renderHtmlWithMeta(req, rawHtml);
+      res.status(200).set({ "Content-Type": "text/html" }).end(finalHtml || rawHtml);
     });
   }
 

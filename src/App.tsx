@@ -100,24 +100,38 @@ export default function App() {
 
       // 2. Article route detection
       let targetSlugOrId = '';
-      const queryTarget =
-        params.get('noticia') ||
-        params.get('materia') ||
-        params.get('article') ||
-        params.get('id');
 
-      if (queryTarget) {
-        targetSlugOrId = queryTarget.trim();
-      } else if (rawHash && rawHash !== '#' && rawHash !== '#home') {
-        const cleanHash = rawHash.replace(/^#\/?/, ''); // e.g. "noticia/slug" or "materia/slug" or "slug"
-        if (cleanHash.startsWith('noticia/')) {
-          targetSlugOrId = cleanHash.replace(/^noticia\//, '');
-        } else if (cleanHash.startsWith('materia/')) {
-          targetSlugOrId = cleanHash.replace(/^materia\//, '');
-        } else if (cleanHash.startsWith('article/')) {
-          targetSlugOrId = cleanHash.replace(/^article\//, '');
-        } else if (cleanHash !== 'ferias' && cleanHash !== 'feiras') {
-          targetSlugOrId = cleanHash;
+      // Check pathname (e.g. /noticia/slug or /materia/slug)
+      const pathname = window.location.pathname;
+      if (pathname.startsWith('/noticia/')) {
+        targetSlugOrId = pathname.replace(/^\/noticia\//, '');
+      } else if (pathname.startsWith('/materia/')) {
+        targetSlugOrId = pathname.replace(/^\/materia\//, '');
+      } else if (pathname.startsWith('/article/')) {
+        targetSlugOrId = pathname.replace(/^\/article\//, '');
+      }
+
+      if (!targetSlugOrId) {
+        const queryTarget =
+          params.get('noticia') ||
+          params.get('materia') ||
+          params.get('article') ||
+          params.get('id') ||
+          params.get('slug');
+
+        if (queryTarget) {
+          targetSlugOrId = queryTarget.trim();
+        } else if (rawHash && rawHash !== '#' && rawHash !== '#home') {
+          const cleanHash = rawHash.replace(/^#\/?/, ''); // e.g. "noticia/slug" or "materia/slug" or "slug"
+          if (cleanHash.startsWith('noticia/')) {
+            targetSlugOrId = cleanHash.replace(/^noticia\//, '');
+          } else if (cleanHash.startsWith('materia/')) {
+            targetSlugOrId = cleanHash.replace(/^materia\//, '');
+          } else if (cleanHash.startsWith('article/')) {
+            targetSlugOrId = cleanHash.replace(/^article\//, '');
+          } else if (cleanHash !== 'ferias' && cleanHash !== 'feiras') {
+            targetSlugOrId = cleanHash;
+          }
         }
       }
 
@@ -137,11 +151,13 @@ export default function App() {
         }
       }
 
-      // Default to home if hash is empty or #home
+      // Default to home if hash is empty or #home or root path
       if (!rawHash || rawHash === '#' || rawHash === '#home') {
-        setViewMode((prev) => (prev === 'admin' ? 'admin' : 'home'));
-        if (viewMode !== 'admin') {
-          setSelectedArticle(null);
+        if (pathname === '/' || pathname === '') {
+          setViewMode((prev) => (prev === 'admin' ? 'admin' : 'home'));
+          if (viewMode !== 'admin') {
+            setSelectedArticle(null);
+          }
         }
       }
     };
@@ -161,9 +177,9 @@ export default function App() {
     if (typeof (window as any).gtag === 'function') {
       const pagePath =
         viewMode === 'article' && selectedArticle
-          ? `/#noticia/${selectedArticle.slug || selectedArticle.id}`
+          ? `/noticia/${selectedArticle.slug || selectedArticle.id}`
           : viewMode === 'admin'
-          ? '/#painel'
+          ? '/painel'
           : '/';
 
       const pageTitle =
@@ -183,8 +199,9 @@ export default function App() {
     setSelectedArticle(article);
     setViewMode('article');
     const slug = article.slug || article.id;
-    if (window.location.hash !== `#noticia/${slug}`) {
-      window.location.hash = `noticia/${slug}`;
+    const targetPath = `/noticia/${slug}`;
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ articleId: article.id }, '', targetPath);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -192,8 +209,8 @@ export default function App() {
   const handleNavigateHome = () => {
     setViewMode('home');
     setSelectedArticle(null);
-    if (window.location.hash && !window.location.hash.toLowerCase().includes('ferias')) {
-      history.pushState('', document.title, window.location.pathname + window.location.search);
+    if (window.location.pathname !== '/' || window.location.hash) {
+      window.history.pushState({}, '', '/');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

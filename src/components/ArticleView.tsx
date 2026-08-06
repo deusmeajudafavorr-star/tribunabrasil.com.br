@@ -56,11 +56,35 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
     // Initial load comments
     setComments(storage.getComments(article.id));
 
-    // Update URL Hash to ensure specific article route
     const slug = article.slug || article.id;
-    const expectedHash = `#noticia/${slug}`;
-    if (window.location.hash !== expectedHash) {
-      window.location.hash = expectedHash;
+    const shareableUrl = `${window.location.origin}/noticia/${slug}`;
+
+    // Dynamic document title and meta tags update for SPA
+    const title = `${article.title} - Tribuna Brasil`;
+    document.title = title;
+
+    const setMetaTag = (attrName: 'property' | 'name', attrValue: string, contentValue: string) => {
+      let el = document.querySelector(`meta[${attrName}="${attrValue}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attrName, attrValue);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', contentValue);
+    };
+
+    setMetaTag('property', 'og:title', title);
+    setMetaTag('property', 'og:description', article.subtitle || article.excerpt || article.title);
+    setMetaTag('property', 'og:image', article.coverImage);
+    setMetaTag('property', 'og:url', shareableUrl);
+    setMetaTag('name', 'twitter:title', title);
+    setMetaTag('name', 'twitter:description', article.subtitle || article.excerpt || article.title);
+    setMetaTag('name', 'twitter:image', article.coverImage);
+
+    // Ensure URL pathname is clean
+    const targetPath = `/noticia/${slug}`;
+    if (window.location.pathname !== targetPath) {
+      window.history.replaceState({ articleId: article.id }, '', targetPath);
     }
 
     // Subscribe to Firebase comments in real time
@@ -80,7 +104,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
         window.speechSynthesis.cancel();
       }
     };
-  }, [article.id, article.slug]);
+  }, [article.id, article.slug, article.title, article.coverImage, article.subtitle, article.excerpt]);
 
 
   // Audio Player Handler
@@ -135,7 +159,7 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
   // Helper for generating shareable URL for the article
   const getArticleShareUrl = () => {
     const slug = article.slug || article.id;
-    return `${window.location.origin}${window.location.pathname}#noticia/${slug}`;
+    return `${window.location.origin}/noticia/${slug}`;
   };
 
   // Copy Link

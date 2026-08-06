@@ -9,6 +9,7 @@ import { Footer } from './components/Footer';
 import { storage } from './services/storage';
 import {
   seedInitialDataIfEmpty,
+  syncAllLocalArticlesToFirebase,
   subscribeArticles,
   subscribeCategories,
   subscribeUsers,
@@ -43,10 +44,17 @@ export default function App() {
 
   useEffect(() => {
     // 1. Initial local load
-    loadData();
+    const loadedArticles = storage.getArticles();
+    const loadedCategories = storage.getCategories();
+    const loadedUsers = storage.getUsers();
 
-    // 2. Check/Seed Firebase RTDB
+    setArticles(loadedArticles);
+    setCategories(loadedCategories);
+    setUsers(loadedUsers);
+
+    // 2. Check/Seed and sync all local + initial articles to Firebase RTDB
     seedInitialDataIfEmpty();
+    syncAllLocalArticlesToFirebase(loadedArticles);
 
     // 3. Subscribe to Realtime Firebase Updates
     const unsubscribeArticles = subscribeArticles((remoteArticles) => {

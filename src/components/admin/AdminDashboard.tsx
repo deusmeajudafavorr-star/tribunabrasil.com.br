@@ -31,6 +31,7 @@ import {
 import { Article, Category, User } from '../../types';
 import { storage } from '../../services/storage';
 import { callAIAssistant } from '../../services/aiService';
+import { syncAllLocalArticlesToFirebase } from '../../services/firebase';
 
 interface AdminDashboardProps {
   articles: Article[];
@@ -137,6 +138,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       alert('Erro de conexão ao sincronizar WSJ: ' + (err?.message || 'Tente novamente.'));
     } finally {
       setWsjSyncing(false);
+    }
+  };
+
+  const [firebaseSyncing, setFirebaseSyncing] = useState(false);
+
+  const handleSyncFirebase = async () => {
+    setFirebaseSyncing(true);
+    try {
+      const allLocal = storage.getArticles();
+      await syncAllLocalArticlesToFirebase(allLocal);
+      alert(`✅ Sincronização concluída! Todas as ${allLocal.length} matérias e suas imagens foram sincronizadas com o Firebase.`);
+      onRefreshData();
+    } catch (err: any) {
+      alert('Erro ao sincronizar com Firebase: ' + (err?.message || 'Tente novamente.'));
+    } finally {
+      setFirebaseSyncing(false);
     }
   };
 
@@ -413,6 +430,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncFirebase}
+            disabled={firebaseSyncing}
+            className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs px-3 py-2 rounded-md transition-all cursor-pointer shadow-xs"
+            title="Sincronizar todas as notícias e imagens com o Firebase Realtime DB"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${firebaseSyncing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{firebaseSyncing ? 'Sincronizando...' : 'Sincronizar Firebase'}</span>
+            <span className="sm:hidden">Firebase</span>
+          </button>
           <button
             onClick={onViewLiveSite}
             className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs px-3.5 py-2 rounded-md transition-all border border-zinc-700 cursor-pointer"

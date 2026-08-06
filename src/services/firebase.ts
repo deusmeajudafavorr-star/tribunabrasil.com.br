@@ -18,19 +18,56 @@ function toArray<T>(val: Record<string, T> | T[] | null | undefined): T[] {
   return Object.values(val).filter(Boolean);
 }
 
-// Automatic Seeding if nodes are missing or empty
-export async function seedInitialDataIfEmpty(): Promise<void> {
+// Automatic Seeding and Syncing to ensure all articles (initial + generated) exist in Firebase
+export async function syncAllLocalArticlesToFirebase(localArticles: Article[] = []): Promise<void> {
   try {
     const articlesRef = ref(db, 'articles');
     const snapshot = await get(articlesRef);
-    if (!snapshot.exists()) {
-      console.log('Seeding initial articles to Firebase...');
-      const articlesObj: Record<string, Article> = {};
-      INITIAL_ARTICLES.forEach((a) => {
-        articlesObj[a.id] = a;
+    const existingData = snapshot.exists() ? snapshot.val() : {};
+    
+    const articlesMap: Record<string, Article> = {};
+    if (Array.isArray(existingData)) {
+      existingData.filter(Boolean).forEach((a: Article) => {
+        if (a && a.id) articlesMap[a.id] = a;
       });
-      await set(ref(db, 'articles'), articlesObj);
+    } else if (typeof existingData === 'object' && existingData !== null) {
+      Object.values(existingData).filter(Boolean).forEach((a: any) => {
+        if (a && a.id) articlesMap[a.id] = a as Article;
+      });
     }
+
+    let hasChanges = false;
+
+    // 1. Ensure INITIAL_ARTICLES are present in Firebase
+    INITIAL_ARTICLES.forEach((a) => {
+      if (!articlesMap[a.id]) {
+        articlesMap[a.id] = a;
+        hasChanges = true;
+      }
+    });
+
+    // 2. Ensure localArticles (e.g., generated or edited in browser) are present in Firebase
+    localArticles.forEach((a) => {
+      if (a && a.id) {
+        if (!articlesMap[a.id] || JSON.stringify(articlesMap[a.id]) !== JSON.stringify(a)) {
+          articlesMap[a.id] = a;
+          hasChanges = true;
+        }
+      }
+    });
+
+    if (hasChanges || !snapshot.exists()) {
+      console.log('Syncing all local & initial articles to Firebase RTDB...');
+      await set(articlesRef, articlesMap);
+    }
+  } catch (err) {
+    console.error('Error syncing articles to Firebase RTDB:', err);
+  }
+}
+
+export async function seedInitialDataIfEmpty(): Promise<void> {
+  try {
+    await syncAllLocalArticlesToFirebase();
 
     const categoriesRef = ref(db, 'categories');
     const catSnapshot = await get(categoriesRef);

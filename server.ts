@@ -407,17 +407,27 @@ Conteúdo: ${content || prompt}`;
       title = `${formattedTitle} - Tribuna Brasil`;
     }
 
+    // Ensure image URL is absolute and uses https
+    if (image.startsWith('/')) {
+      image = `${protocol}://${host}${image}`;
+    } else if (image.startsWith('http://')) {
+      image = image.replace('http://', 'https://');
+    }
+
     let html = rawHtml;
 
     // Replace Title
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
 
     // Remove existing default og and twitter tags to prevent duplicate meta tag conflicts
-    html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:)[^"']*["'].*?>/gi, '');
+    html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:|description|title)[^"']*["'].*?>/gi, '');
 
     // Inject complete Open Graph & Twitter Card Meta Tags for large social cards (Facebook, WhatsApp, Twitter, LinkedIn)
     const ogTags = `
     <!-- Dynamic Article Open Graph Meta Tags for Social Media Crawlers -->
+    <meta name="title" content="${title.replace(/"/g, '&quot;')}" />
+    <meta name="description" content="${description}" />
+
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Tribuna Brasil" />
     <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />

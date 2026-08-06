@@ -71,19 +71,43 @@ export default async function handler(req: any, res: any) {
     indexPath = path.join(process.cwd(), 'index.html');
   }
 
-  let html = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, 'utf-8') : '';
+  const DEFAULT_HTML_TEMPLATE = `<!doctype html>
+<html lang="pt-BR" prefix="og: http://ogp.me/ns#">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Tribuna Brasil - Portal de Notícias</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>`;
+
+  let rawHtml = '';
+  try {
+    if (fs.existsSync(indexPath)) {
+      rawHtml = fs.readFileSync(indexPath, 'utf-8');
+    }
+  } catch (e) {
+    console.error('Error reading index.html:', e);
+  }
+
+  let html = rawHtml && rawHtml.includes('</head>') ? rawHtml : DEFAULT_HTML_TEMPLATE;
 
   let title = 'Tribuna Brasil - Portal de Notícias';
   let description = 'Acompanhe as últimas notícias do Brasil e do mundo no Tribuna Brasil.';
   let image = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
-  const host = req.headers.host || 'tribunabrasil-com-br.vercel.app';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'tribunabrasil-com-br.vercel.app';
   const protocol = req.headers['x-forwarded-proto'] || 'https';
   let fullUrl = `${protocol}://${host}/noticia/${slug}`;
 
   if (article) {
     title = `${article.title} - Tribuna Brasil`;
-    description = (article.subtitle || article.excerpt || article.title)
+    description = (article.subtitle || article.excerpt || article.title || '')
       .replace(/"/g, '&quot;')
+      .replace(/<[^>]*>?/gm, '') // Strip any HTML tags from excerpt
       .replace(/\s+/g, ' ')
       .trim();
     if (article.coverImage) {
@@ -100,16 +124,25 @@ export default async function handler(req: any, res: any) {
     title = `${formattedTitle} - Tribuna Brasil`;
   }
 
-  if (html) {
-    // Replace Title
-    html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
+  // Ensure image URL is absolute and starts with https
+  if (image.startsWith('/')) {
+    image = `${protocol}://${host}${image}`;
+  } else if (image.startsWith('http://')) {
+    image = image.replace('http://', 'https://');
+  }
 
-    // Remove existing fallback meta tags to avoid duplicate tag conflicts for crawlers
-    html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:)[^"']*["'].*?>/gi, '');
+  // Replace Title
+  html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
 
-    // Inject rich Open Graph & Twitter Card meta tags for Facebook, WhatsApp, Twitter, Instagram
-    const ogTags = `
-    <!-- Dynamic Article Open Graph Meta Tags -->
+  // Remove existing fallback meta tags to avoid duplicate tag conflicts for crawlers
+  html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:|description|title)[^"']*["'].*?>/gi, '');
+
+  // Inject rich Open Graph & Twitter Card meta tags for Facebook, WhatsApp, Twitter, Instagram
+  const ogTags = `
+    <!-- Dynamic Article Meta Tags for Facebook, WhatsApp & Twitter -->
+    <meta name="title" content="${title.replace(/"/g, '&quot;')}" />
+    <meta name="description" content="${description}" />
+
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Tribuna Brasil" />
     <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
@@ -127,12 +160,12 @@ export default async function handler(req: any, res: any) {
     <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${image}" />
-    `;
+  `;
 
-    html = html.replace('</head>', `${ogTags}\n  </head>`);
-  }
+  html = html.replace('</head>', `${ogTags}\n  </head>`);
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
   res.status(200).send(html);
 }
 

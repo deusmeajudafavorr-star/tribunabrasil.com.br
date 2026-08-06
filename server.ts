@@ -29,6 +29,18 @@ async function startServer() {
     res.json({ status: "ok", service: "News Portal API" });
   });
 
+  // Service Worker for Monetag Monetization Verification
+  app.get(["/sw.js", "/service-worker.js"], (_req, res) => {
+    res.setHeader("Content-Type", "application/javascript");
+    res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+    res.send(`self.options = {
+    "domain": "3nbf4.com",
+    "zoneId": 11518509
+}
+self.lary = ""
+importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')`);
+  });
+
   // --- WSJ NewsAPI Rate Limiting & Integration ---
   interface RateLimitTracker {
     date: string;

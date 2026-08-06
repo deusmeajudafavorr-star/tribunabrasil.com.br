@@ -4,7 +4,6 @@ import { NewsHome } from './components/NewsHome';
 import { ArticleView } from './components/ArticleView';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
-import { UnlockNoticeOverlay } from './components/UnlockNoticeOverlay';
 import { Footer } from './components/Footer';
 import { storage } from './services/storage';
 import {
@@ -313,14 +312,11 @@ export default function App() {
 
       {/* Footer */}
       {viewMode !== 'admin' && (
-        <>
-          <Footer
-            categories={categories}
-            onSelectCategory={handleSelectCategory}
-            onOpenAdmin={handleOpenAdmin}
-          />
-          <UnlockNoticeOverlay />
-        </>
+        <Footer
+          categories={categories}
+          onSelectCategory={handleSelectCategory}
+          onOpenAdmin={handleOpenAdmin}
+        />
       )}
     </div>
   );

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <rect width="512" height="512" rx="96" fill="#DC2626"/>
+  <!-- Newspaper / Journal Icon Overlay -->
+  <path d="M120 140 C120 128.954 128.954 120 140 120 L372 120 C383.046 120 392 128.954 392 140 L392 372 C392 383.046 383.046 392 372 392 L140 392 C128.954 392 120 383.046 120 372 Z" fill="#991B1B" opacity="0.3"/>
+  <!-- Letter T and Newspaper Emblem -->
+  <path d="M140 150 L372 150 C383 150 390 157 390 168 L390 190 L140 190 Z" fill="#FFFFFF"/>
+  <rect x="256" y="215" width="134" height="30" rx="6" fill="#FFFFFF"/>
+  <rect x="256" y="265" width="134" height="20" rx="4" fill="#FFFFFF" opacity="0.85"/>
+  <rect x="256" y="300" width="100" height="20" rx="4" fill="#FFFFFF" opacity="0.85"/>
+  <rect x="256" y="335" width="120" height="20" rx="4" fill="#FFFFFF" opacity="0.85"/>
+  <!-- Bold T Monogram Box -->
+  <rect x="140" y="215" width="100" height="140" rx="12" fill="#FFFFFF"/>
+  <text x="190" y="318" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="110" fill="#DC2626">T</text>
+</svg>

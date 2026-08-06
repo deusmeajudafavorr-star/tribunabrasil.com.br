@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { HeaderAdBanner } from './components/HeaderAdBanner';
 import { NewsHome } from './components/NewsHome';
 import { ArticleView } from './components/ArticleView';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -256,17 +257,20 @@ export default function App() {
     <div className="min-h-screen bg-zinc-100 flex flex-col font-sans text-zinc-900 antialiased selection:bg-red-600 selection:text-white">
       {/* Header (Rendered unless in Admin) */}
       {viewMode !== 'admin' && (
-        <Header
-          categories={categories}
-          activeCategoryId={activeCategoryId}
-          onSelectCategory={handleSelectCategory}
-          onNavigateHome={handleNavigateHome}
-          onOpenAdmin={handleOpenAdmin}
-          onOpenArticle={handleOpenArticle}
-          breakingArticles={breakingArticles}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+        <>
+          <Header
+            categories={categories}
+            activeCategoryId={activeCategoryId}
+            onSelectCategory={handleSelectCategory}
+            onNavigateHome={handleNavigateHome}
+            onOpenAdmin={handleOpenAdmin}
+            onOpenArticle={handleOpenArticle}
+            breakingArticles={breakingArticles}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+          <HeaderAdBanner />
+        </>
       )}
 
       {/* Main Content Router */}

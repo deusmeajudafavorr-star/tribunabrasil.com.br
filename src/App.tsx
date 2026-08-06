@@ -16,9 +16,13 @@ import {
   subscribeUsers,
 } from './services/firebase';
 import { Article, Category, User, ViewMode } from './types';
+import { useAdminAdProtection } from './hooks/useAdminAdProtection';
 
 export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('home');
+
+  // Activate ad shield whenever in admin view mode
+  useAdminAdProtection(viewMode === 'admin');
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<User[]>([]);

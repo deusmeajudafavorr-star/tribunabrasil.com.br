@@ -22,8 +22,11 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl space-y-6">
+    <div
+      className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-4 relative z-[99999]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl space-y-6 relative z-[100000]">
         <div className="text-center space-y-2">
           <div className="w-14 h-14 bg-red-600/20 text-red-500 rounded-2xl border border-red-500/30 flex items-center justify-center mx-auto shadow-inner">
             <Lock className="w-7 h-7" />

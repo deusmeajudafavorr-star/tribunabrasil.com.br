@@ -312,7 +312,7 @@ Conteúdo: ${content || prompt}`;
   });
 
   // Helper to inject dynamic Open Graph meta tags into index.html for social media crawlers
-  function renderHtmlWithMeta(req: express.Request, rawHtml: string): string {
+  async function renderHtmlWithMeta(req: express.Request, rawHtml: string): Promise<string> {
     const urlPath = req.path;
     const query = req.query;
 
@@ -331,7 +331,7 @@ Conteúdo: ${content || prompt}`;
       targetSlug = String(query.slug).trim();
     }
 
-    if (!targetSlug) {
+    if (!targetSlug || targetSlug === 'home') {
       return rawHtml;
     }
 
@@ -341,25 +341,71 @@ Conteúdo: ${content || prompt}`;
       targetSlug = targetSlug.toLowerCase().trim();
     }
 
-    const matchedArticle = INITIAL_ARTICLES.find(
-      (a) =>
-        a.slug?.toLowerCase() === targetSlug ||
-        a.id?.toLowerCase() === targetSlug ||
-        a.slug?.toLowerCase() === targetSlug.replace(/^noticia-/, '')
-    );
+    const normalizeSlug = (str: string) =>
+      (str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
 
-    if (!matchedArticle) {
-      return rawHtml;
+    const cleanSlug = normalizeSlug(targetSlug);
+
+    // Fetch live articles from Firebase RTDB
+    let fbArticles: any[] = [];
+    try {
+      const fbRes = await fetch('https://notaziavoz-default-rtdb.firebaseio.com/articles.json');
+      if (fbRes.ok) {
+        const data = await fbRes.json();
+        if (data) {
+          fbArticles = Array.isArray(data) ? data.filter(Boolean) : Object.values(data).filter(Boolean);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching Firebase articles in server.ts:', err);
     }
 
-    const title = `${matchedArticle.title} - Tribuna Brasil`;
-    const description = (matchedArticle.subtitle || matchedArticle.excerpt || matchedArticle.title)
-      .replace(/"/g, '&quot;')
-      .replace(/\n/g, ' ');
-    const image = matchedArticle.coverImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+    const allArticles = [...fbArticles, ...INITIAL_ARTICLES];
+
+    const matchedArticle = allArticles.find((a) => {
+      if (!a) return false;
+      const aSlug = normalizeSlug(a.slug || '');
+      const aId = normalizeSlug(a.id || '');
+      const aTitleSlug = normalizeSlug(a.title || '');
+
+      return (
+        aSlug === cleanSlug ||
+        aId === cleanSlug ||
+        aTitleSlug === cleanSlug ||
+        (aSlug && cleanSlug && (cleanSlug.includes(aSlug) || aSlug.includes(cleanSlug)))
+      );
+    });
+
+    let title = 'Tribuna Brasil - Portal de Notícias';
+    let description = 'Acompanhe as últimas notícias do Brasil e do mundo no Tribuna Brasil.';
+    let image = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
     const host = req.get('host') || 'tribunabrasil-com-br.vercel.app';
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-    const fullUrl = `${protocol}://${host}/noticia/${matchedArticle.slug || matchedArticle.id}`;
+    let fullUrl = `${protocol}://${host}/noticia/${cleanSlug}`;
+
+    if (matchedArticle) {
+      title = `${matchedArticle.title} - Tribuna Brasil`;
+      description = (matchedArticle.subtitle || matchedArticle.excerpt || matchedArticle.title)
+        .replace(/"/g, '&quot;')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (matchedArticle.coverImage) {
+        image = matchedArticle.coverImage;
+      }
+      fullUrl = `${protocol}://${host}/noticia/${matchedArticle.slug || matchedArticle.id}`;
+    } else {
+      const formattedTitle = targetSlug
+        .split('-')
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+      title = `${formattedTitle} - Tribuna Brasil`;
+    }
 
     let html = rawHtml;
 
@@ -404,10 +450,10 @@ Conteúdo: ${content || prompt}`;
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", async (req, res) => {
       const distIndexPath = path.join(distPath, "index.html");
       const rawHtml = fs.existsSync(distIndexPath) ? fs.readFileSync(distIndexPath, "utf-8") : "";
-      const finalHtml = renderHtmlWithMeta(req, rawHtml);
+      const finalHtml = await renderHtmlWithMeta(req, rawHtml);
       res.status(200).set({ "Content-Type": "text/html" }).end(finalHtml || rawHtml);
     });
   }

@@ -2,7 +2,36 @@ import fs from 'fs';
 import path from 'path';
 import { INITIAL_ARTICLES } from '../src/data/initialData';
 
-export default function handler(req: any, res: any) {
+const FIREBASE_DB_URL = 'https://notaziavoz-default-rtdb.firebaseio.com/articles.json';
+
+function normalizeSlug(str: string): string {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+async function fetchFirebaseArticles(): Promise<any[]> {
+  try {
+    const response = await fetch(FIREBASE_DB_URL);
+    if (response.ok) {
+      const data = await response.json();
+      if (data) {
+        if (Array.isArray(data)) {
+          return data.filter(Boolean);
+        }
+        return Object.values(data).filter(Boolean);
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching articles from Firebase:', err);
+  }
+  return [];
+}
+
+export default async function handler(req: any, res: any) {
   let slug = (req.query.slug as string) || '';
   if (Array.isArray(slug)) {
     slug = (slug as string[]).join('/');
@@ -15,13 +44,27 @@ export default function handler(req: any, res: any) {
     slug = slug.toLowerCase().trim();
   }
 
-  // Find article matching slug or id
-  const article = INITIAL_ARTICLES.find(
-    (a) =>
-      a.slug?.toLowerCase() === slug ||
-      a.id?.toLowerCase() === slug ||
-      a.slug?.toLowerCase() === slug.replace(/^noticia-/, '')
-  );
+  // Strip prefixes
+  slug = slug.replace(/^(noticia|materia|article)\//i, '');
+  const cleanSlug = normalizeSlug(slug);
+
+  // Fetch live articles from Firebase RTDB + static initial data fallback
+  const fbArticles = await fetchFirebaseArticles();
+  const allArticles = [...fbArticles, ...INITIAL_ARTICLES];
+
+  let article = allArticles.find((a) => {
+    if (!a) return false;
+    const aSlug = normalizeSlug(a.slug || '');
+    const aId = normalizeSlug(a.id || '');
+    const aTitleSlug = normalizeSlug(a.title || '');
+
+    return (
+      aSlug === cleanSlug ||
+      aId === cleanSlug ||
+      aTitleSlug === cleanSlug ||
+      (aSlug && cleanSlug && (cleanSlug.includes(aSlug) || aSlug.includes(cleanSlug)))
+    );
+  });
 
   let indexPath = path.join(process.cwd(), 'dist', 'index.html');
   if (!fs.existsSync(indexPath)) {
@@ -30,23 +73,41 @@ export default function handler(req: any, res: any) {
 
   let html = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, 'utf-8') : '';
 
-  if (article && html) {
-    const title = `${article.title} - Tribuna Brasil`;
-    const description = (article.subtitle || article.excerpt || article.title)
-      .replace(/"/g, '&quot;')
-      .replace(/\n/g, ' ');
-    const image = article.coverImage || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
-    const host = req.headers.host || 'tribunabrasil-com-br.vercel.app';
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const fullUrl = `${protocol}://${host}/noticia/${article.slug || article.id}`;
+  let title = 'Tribuna Brasil - Portal de Notícias';
+  let description = 'Acompanhe as últimas notícias do Brasil e do mundo no Tribuna Brasil.';
+  let image = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+  const host = req.headers.host || 'tribunabrasil-com-br.vercel.app';
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+  let fullUrl = `${protocol}://${host}/noticia/${slug}`;
 
+  if (article) {
+    title = `${article.title} - Tribuna Brasil`;
+    description = (article.subtitle || article.excerpt || article.title)
+      .replace(/"/g, '&quot;')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (article.coverImage) {
+      image = article.coverImage;
+    }
+    fullUrl = `${protocol}://${host}/noticia/${article.slug || article.id}`;
+  } else if (slug && slug !== 'home') {
+    // Generate clean title from slug if article not found in DB
+    const formattedTitle = slug
+      .split('-')
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+    title = `${formattedTitle} - Tribuna Brasil`;
+  }
+
+  if (html) {
     // Replace Title
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
 
-    // Remove fallback meta tags to avoid duplication
+    // Remove existing fallback meta tags to avoid duplicate tag conflicts for crawlers
     html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:)[^"']*["'].*?>/gi, '');
 
-    // Inject rich Open Graph & Twitter Card meta tags for Facebook / WhatsApp / Twitter
+    // Inject rich Open Graph & Twitter Card meta tags for Facebook, WhatsApp, Twitter, Instagram
     const ogTags = `
     <!-- Dynamic Article Open Graph Meta Tags -->
     <meta property="og:type" content="article" />
@@ -74,3 +135,4 @@ export default function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.status(200).send(html);
 }
+

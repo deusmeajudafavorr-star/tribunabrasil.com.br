@@ -7,6 +7,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { Footer } from './components/Footer';
 import { FooterAdBanner } from './components/FooterAdBanner';
+import { PublicAdScripts } from './components/PublicAdScripts';
 import { storage } from './services/storage';
 import {
   seedInitialDataIfEmpty,
@@ -263,6 +264,7 @@ export default function App() {
       {/* Header (Rendered unless in Admin) */}
       {viewMode !== 'admin' && (
         <>
+          <PublicAdScripts />
           <Header
             categories={categories}
             activeCategoryId={activeCategoryId}

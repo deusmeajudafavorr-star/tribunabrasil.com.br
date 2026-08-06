@@ -69,9 +69,28 @@ export function useAdminAdProtection(isAdminActive: boolean) {
       return originalWindowOpen.apply(this, args);
     };
 
-    // 3. Purge function to remove non-root DOM elements created by ad scripts
+    // 3. Purge function to remove non-root DOM elements and ad scripts
     const purgeAdNodes = () => {
       if (!document.documentElement.classList.contains('admin-mode-active')) return;
+
+      // Remove ad script tags from head and body
+      const scripts = document.querySelectorAll('script');
+      scripts.forEach((s) => {
+        const src = s.src || '';
+        if (
+          src.includes('quge5') ||
+          src.includes('nap5k') ||
+          src.includes('al5sm') ||
+          src.includes('effectivecpmnetwork') ||
+          src.includes('highperformanceformat')
+        ) {
+          try {
+            s.remove();
+          } catch {
+            // ignore
+          }
+        }
+      });
 
       // Purge direct body children
       const bodyChildren = Array.from(document.body.children);

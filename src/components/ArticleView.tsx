@@ -73,10 +73,18 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
       el.setAttribute('content', contentValue);
     };
 
+    setMetaTag('property', 'og:type', 'article');
+    setMetaTag('property', 'og:site_name', 'Tribuna Brasil');
     setMetaTag('property', 'og:title', title);
     setMetaTag('property', 'og:description', article.subtitle || article.excerpt || article.title);
     setMetaTag('property', 'og:image', article.coverImage);
+    setMetaTag('property', 'og:image:secure_url', article.coverImage);
+    setMetaTag('property', 'og:image:type', 'image/jpeg');
+    setMetaTag('property', 'og:image:width', '1200');
+    setMetaTag('property', 'og:image:height', '630');
     setMetaTag('property', 'og:url', shareableUrl);
+    setMetaTag('property', 'og:locale', 'pt_BR');
+    setMetaTag('name', 'twitter:card', 'summary_large_image');
     setMetaTag('name', 'twitter:title', title);
     setMetaTag('name', 'twitter:description', article.subtitle || article.excerpt || article.title);
     setMetaTag('name', 'twitter:image', article.coverImage);

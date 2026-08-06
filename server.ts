@@ -366,7 +366,10 @@ Conteúdo: ${content || prompt}`;
     // Replace Title
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
 
-    // Inject or override Open Graph Meta Tags
+    // Remove existing default og and twitter tags to prevent duplicate meta tag conflicts
+    html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:)[^"']*["'].*?>/gi, '');
+
+    // Inject complete Open Graph & Twitter Card Meta Tags for large social cards (Facebook, WhatsApp, Twitter, LinkedIn)
     const ogTags = `
     <!-- Dynamic Article Open Graph Meta Tags for Social Media Crawlers -->
     <meta property="og:type" content="article" />
@@ -374,11 +377,15 @@ Conteúdo: ${content || prompt}`;
     <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:image" content="${image}" />
+    <meta property="og:image:secure_url" content="${image}" />
+    <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:url" content="${fullUrl}" />
+    <meta property="og:locale" content="pt_BR" />
 
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@tribunabrasil" />
     <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${image}" />

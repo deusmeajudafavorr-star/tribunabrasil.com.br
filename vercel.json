@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/noticia/:slug*",
+      "destination": "/api/noticia?slug=:slug*"
+    },
+    {
+      "source": "/materia/:slug*",
+      "destination": "/api/noticia?slug=:slug*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

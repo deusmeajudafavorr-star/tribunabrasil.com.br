@@ -1,5 +1,123 @@
 import { useEffect } from 'react';
 
+// --- TOP-LEVEL SHIELD MONKEY-PATCHES ---
+// Runs as soon as the JS bundle is loaded, intercepting ad scripts before they attach event listeners.
+
+const adEventTypes = [
+  'click',
+  'mousedown',
+  'mouseup',
+  'pointerdown',
+  'pointerup',
+  'touchstart',
+  'touchend',
+  'contextmenu',
+  'dblclick',
+];
+
+const originalAddEventListener = EventTarget.prototype.addEventListener;
+const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
+
+const isGlobalTarget = (target: any): boolean => {
+  return target === window || target === document || target === document.body || target === document.documentElement;
+};
+
+EventTarget.prototype.addEventListener = function (
+  type: string,
+  listener: EventListenerOrEventListenerObject | null,
+  options?: boolean | AddEventListenerOptions
+) {
+  if (!listener) {
+    return originalAddEventListener.call(this, type, listener, options);
+  }
+
+  // Intercept click/mouse/touch listeners registered on global targets (window, document, body)
+  if (isGlobalTarget(this) && adEventTypes.includes(type)) {
+    const wrappedFn = function (this: any, event: Event) {
+      // Check if Admin Mode is active
+      if (document.documentElement.classList.contains('admin-mode-active')) {
+        // Block third-party ad click/mouse listeners from executing during Admin mode
+        try {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
+      if (typeof listener === 'function') {
+        return listener.call(this, event);
+      } else if (typeof listener === 'object' && listener.handleEvent) {
+        return listener.handleEvent(event);
+      }
+    };
+
+    try {
+      (listener as any).__adminShieldWrapped = wrappedFn;
+    } catch {
+      // ignore
+    }
+
+    return originalAddEventListener.call(this, type, wrappedFn, options);
+  }
+
+  return originalAddEventListener.call(this, type, listener, options);
+};
+
+EventTarget.prototype.removeEventListener = function (
+  type: string,
+  listener: EventListenerOrEventListenerObject | null,
+  options?: boolean | EventListenerOptions
+) {
+  if (listener && (listener as any).__adminShieldWrapped) {
+    return originalRemoveEventListener.call(this, type, (listener as any).__adminShieldWrapped, options);
+  }
+  return originalRemoveEventListener.call(this, type, listener, options);
+};
+
+// Intercept window.open
+const originalWindowOpen = window.open;
+window.open = function (...args: Parameters<typeof window.open>) {
+  if (document.documentElement.classList.contains('admin-mode-active')) {
+    console.warn('[AdminShield] Blocked window.open popunder in Admin mode');
+    return {
+      focus: () => {},
+      blur: () => {},
+      close: () => {},
+      closed: false,
+      postMessage: () => {},
+    } as any;
+  }
+  return originalWindowOpen.apply(this, args);
+};
+
+// Intercept HTMLAnchorElement.prototype.click
+const originalAnchorClick = HTMLAnchorElement.prototype.click;
+HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+  if (document.documentElement.classList.contains('admin-mode-active')) {
+    if (!this.closest('#root')) {
+      console.warn('[AdminShield] Blocked programmatic anchor click in Admin mode');
+      return;
+    }
+  }
+  return originalAnchorClick.call(this);
+};
+
+// Intercept HTMLFormElement.prototype.submit
+const originalFormSubmit = HTMLFormElement.prototype.submit;
+HTMLFormElement.prototype.submit = function (this: HTMLFormElement) {
+  if (document.documentElement.classList.contains('admin-mode-active')) {
+    if (!this.closest('#root')) {
+      console.warn('[AdminShield] Blocked programmatic form submission in Admin mode');
+      return;
+    }
+  }
+  return originalFormSubmit.call(this);
+};
+
+// --- REACT HOOK FOR ADMIN AD PROTECTION ---
+
 export function useAdminAdProtection(isAdminActive: boolean) {
   useEffect(() => {
     if (!isAdminActive) {
@@ -11,7 +129,12 @@ export function useAdminAdProtection(isAdminActive: boolean) {
     document.body.classList.add('admin-mode-active');
     document.documentElement.classList.add('admin-mode-active');
 
-    // 1. Inject comprehensive CSS Shield
+    // Clear legacy inline click handlers on window/document/body
+    window.onclick = null;
+    document.onclick = null;
+    if (document.body) document.body.onclick = null;
+
+    // Inject high-priority CSS Shield
     const styleId = 'admin-ad-shield-style';
     let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
     if (!styleEl) {
@@ -31,17 +154,14 @@ export function useAdminAdProtection(isAdminActive: boolean) {
         z-index: -999999 !important;
         width: 0 !important;
         height: 0 !important;
-        max-width: 0 !important;
-        max-height: 0 !important;
-        overflow: hidden !important;
         position: absolute !important;
         top: -99999px !important;
-        left: -9999px !important;
+        left: -99999px !important;
         clip: rect(0, 0, 0, 0) !important;
         transform: scale(0) !important;
       }
 
-      /* Hide any floating overlay/dialog/banner/iframe injected anywhere in the DOM */
+      /* Hide any floating overlay, banner, iframe, social bar */
       html.admin-mode-active [id*="container-"],
       html.admin-mode-active [id*="pl30724813"],
       html.admin-mode-active [class*="social-bar"],
@@ -59,21 +179,16 @@ export function useAdminAdProtection(isAdminActive: boolean) {
       }
     `;
 
-    // 2. Override window.open to prevent popunders during admin session
-    const originalWindowOpen = window.open;
-    window.open = function (...args: Parameters<typeof window.open>) {
-      if (document.documentElement.classList.contains('admin-mode-active')) {
-        console.warn('[AdminShield] Popunder blocked during Admin session');
-        return null;
-      }
-      return originalWindowOpen.apply(this, args);
-    };
-
-    // 3. Purge function to remove non-root DOM elements and ad scripts
+    // Routine purge for any non-root DOM elements created by ad scripts
     const purgeAdNodes = () => {
       if (!document.documentElement.classList.contains('admin-mode-active')) return;
 
-      // Remove ad script tags from head and body
+      // Clear inline onclicks
+      window.onclick = null;
+      document.onclick = null;
+      if (document.body) document.body.onclick = null;
+
+      // Remove ad script tags
       const scripts = document.querySelectorAll('script');
       scripts.forEach((s) => {
         const src = s.src || '';
@@ -92,27 +207,13 @@ export function useAdminAdProtection(isAdminActive: boolean) {
         }
       });
 
-      // Purge direct body children
+      // Purge non-root direct body children
       const bodyChildren = Array.from(document.body.children);
       bodyChildren.forEach((node) => {
         if (node.id !== 'root' && node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
           try {
             (node as HTMLElement).style.setProperty('display', 'none', 'important');
             (node as HTMLElement).style.setProperty('pointer-events', 'none', 'important');
-            (node as HTMLElement).style.setProperty('opacity', '0', 'important');
-            (node as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
-            node.remove();
-          } catch {
-            // ignore if element cannot be removed
-          }
-        }
-      });
-
-      // Purge direct html children that are not head or body
-      const htmlChildren = Array.from(document.documentElement.children);
-      htmlChildren.forEach((node) => {
-        if (node.tagName !== 'HEAD' && node.tagName !== 'BODY') {
-          try {
             node.remove();
           } catch {
             // ignore
@@ -121,26 +222,11 @@ export function useAdminAdProtection(isAdminActive: boolean) {
       });
     };
 
-    // Run purge immediately and set continuous fast interval sweep
     purgeAdNodes();
-    const sweepInterval = setInterval(purgeAdNodes, 150);
+    const sweepInterval = setInterval(purgeAdNodes, 100);
 
-    // 4. MutationObserver to instantly kill any ad elements injected dynamically
-    const observer = new MutationObserver((mutations) => {
-      if (!document.documentElement.classList.contains('admin-mode-active')) return;
-      let shouldPurge = false;
-      for (const mutation of mutations) {
-        if (mutation.addedNodes.length > 0) {
-          for (let i = 0; i < mutation.addedNodes.length; i++) {
-            const node = mutation.addedNodes[i];
-            if (node instanceof HTMLElement && node.id !== 'root' && node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
-              shouldPurge = true;
-              break;
-            }
-          }
-        }
-      }
-      if (shouldPurge) {
+    const observer = new MutationObserver(() => {
+      if (document.documentElement.classList.contains('admin-mode-active')) {
         purgeAdNodes();
       }
     });
@@ -148,33 +234,11 @@ export function useAdminAdProtection(isAdminActive: boolean) {
     observer.observe(document.body, { childList: true });
     observer.observe(document.documentElement, { childList: true });
 
-    // 5. Intercept click/mousedown events on window to prevent third-party popunder triggers
-    const interceptAdClicks = (e: Event) => {
-      if (!document.documentElement.classList.contains('admin-mode-active')) return;
-
-      const target = e.target as HTMLElement | null;
-      // If the click is inside #root (e.g. typing login info, clicking buttons), stop it from reaching window/document ad handlers
-      if (target && document.getElementById('root')?.contains(target)) {
-        // Stop propagation to window/document capturing listeners that trigger popunders
-        e.stopPropagation();
-      }
-    };
-
-    const eventTypes = ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'touchstart', 'touchend'];
-    eventTypes.forEach((evt) => {
-      window.addEventListener(evt, interceptAdClicks, true);
-    });
-
-    // Cleanup when leaving admin mode
     return () => {
       document.body.classList.remove('admin-mode-active');
       document.documentElement.classList.remove('admin-mode-active');
-      window.open = originalWindowOpen;
       clearInterval(sweepInterval);
       observer.disconnect();
-      eventTypes.forEach((evt) => {
-        window.removeEventListener(evt, interceptAdClicks, true);
-      });
     };
   }, [isAdminActive]);
 }

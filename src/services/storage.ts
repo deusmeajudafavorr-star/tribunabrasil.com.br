@@ -83,7 +83,83 @@ export const storage = {
     return true;
   },
 
-  incrementViews(id: string): void {
+  // --- VIEW EXCLUSION & IP FILTER ---
+  getExcludedIPs(): string[] {
+    try {
+      const data = localStorage.getItem('portal_excluded_ips_v1');
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  addExcludedIP(ip: string): void {
+    const list = this.getExcludedIPs();
+    const clean = ip.trim();
+    if (clean && !list.includes(clean)) {
+      list.push(clean);
+      localStorage.setItem('portal_excluded_ips_v1', JSON.stringify(list));
+    }
+  },
+
+  removeExcludedIP(ip: string): void {
+    const list = this.getExcludedIPs().filter((i) => i !== ip);
+    localStorage.setItem('portal_excluded_ips_v1', JSON.stringify(list));
+  },
+
+  getExcludeAdminViews(): boolean {
+    const val = localStorage.getItem('portal_exclude_admin_views_v1');
+    return val === null ? true : val === 'true';
+  },
+
+  setExcludeAdminViews(enabled: boolean): void {
+    localStorage.setItem('portal_exclude_admin_views_v1', String(enabled));
+  },
+
+  async getUserIP(): Promise<string | null> {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      if (res.ok) {
+        const data = await res.json();
+        return data.ip || null;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  },
+
+  async shouldIncrementView(): Promise<boolean> {
+    // 1. Check if admin session view exclusion is enabled
+    if (this.getExcludeAdminViews()) {
+      const adminAuth = sessionStorage.getItem('admin_auth');
+      const adminSession = localStorage.getItem('portal_admin_session');
+      const isHashAdmin = window.location.hash.includes('admin');
+      const isAdminMode = document.documentElement.classList.contains('admin-mode-active');
+
+      if (adminAuth || adminSession || isHashAdmin || isAdminMode) {
+        console.log('[ViewTracker] Visualização ignorada (Sessão de Administrador ativa)');
+        return false;
+      }
+    }
+
+    // 2. Check if user's public IP is in the excluded list
+    const excludedIPs = this.getExcludedIPs();
+    if (excludedIPs.length > 0) {
+      const currentIP = await this.getUserIP();
+      if (currentIP && excludedIPs.includes(currentIP)) {
+        console.log(`[ViewTracker] Visualização ignorada (IP ${currentIP} está na lista de bloqueados)`);
+        return false;
+      }
+    }
+
+    return true;
+  },
+
+  async incrementViews(id: string): Promise<void> {
+    const shouldCount = await this.shouldIncrementView();
+    if (!shouldCount) return;
+
     const articles = this.getArticles();
     const article = articles.find((a) => a.id === id);
     if (article) {

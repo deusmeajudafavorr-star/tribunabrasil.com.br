@@ -27,6 +27,8 @@ import {
   Globe,
   Bot,
   Activity,
+  Ban,
+  Check,
 } from 'lucide-react';
 import { Article, Category, User } from '../../types';
 import { storage } from '../../services/storage';
@@ -42,7 +44,7 @@ interface AdminDashboardProps {
   onOpenArticlePreview: (article: Article) => void;
 }
 
-type TabType = 'overview' | 'articles' | 'categories' | 'users';
+type TabType = 'overview' | 'articles' | 'categories' | 'users' | 'settings';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   articles,
@@ -53,6 +55,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenArticlePreview,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  // IP Exclusion & View Filter State
+  const [excludeAdminViews, setExcludeAdminViews] = useState(storage.getExcludeAdminViews());
+  const [excludedIPs, setExcludedIPs] = useState<string[]>(storage.getExcludedIPs());
+  const [currentIP, setCurrentIP] = useState<string | null>(null);
+  const [manualIpInput, setManualIpInput] = useState('');
+
+  useEffect(() => {
+    storage.getUserIP().then((ip) => {
+      if (ip) setCurrentIP(ip);
+    });
+  }, []);
+
+  const handleToggleExcludeAdmin = (val: boolean) => {
+    setExcludeAdminViews(val);
+    storage.setExcludeAdminViews(val);
+  };
+
+  const handleAddCurrentIP = () => {
+    if (currentIP) {
+      storage.addExcludedIP(currentIP);
+      setExcludedIPs(storage.getExcludedIPs());
+    }
+  };
+
+  const handleAddManualIP = () => {
+    if (manualIpInput.trim()) {
+      storage.addExcludedIP(manualIpInput.trim());
+      setExcludedIPs(storage.getExcludedIPs());
+      setManualIpInput('');
+    }
+  };
+
+  const handleRemoveIP = (ip: string) => {
+    storage.removeExcludedIP(ip);
+    setExcludedIPs(storage.getExcludedIPs());
+  };
 
   // Search & Filter state for Articles
   const [articleSearch, setArticleSearch] = useState('');
@@ -527,6 +566,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <span className="bg-zinc-200/60 text-zinc-800 px-2 py-0.5 rounded-full text-[10px]">
                 {users.length}
               </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-md font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'bg-red-600 text-white shadow-xs'
+                  : 'text-zinc-700 hover:bg-zinc-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="w-4 h-4" />
+                <span>Filtro IP / Leituras</span>
+              </div>
+              {excludedIPs.length > 0 && (
+                <span className="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full text-[10px]">
+                  {excludedIPs.length} IP
+                </span>
+              )}
             </button>
           </div>
 
@@ -1013,6 +1071,147 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: SETTINGS / IP FILTER */}
+          {activeTab === 'settings' && (
+            <div className="bg-white rounded-lg border border-zinc-200 p-6 shadow-xs space-y-6">
+              <div className="border-b pb-4">
+                <h3 className="text-xl font-black uppercase text-zinc-900 flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-red-600" />
+                  <span>Filtro de IP & Exclusão de Leituras Próprias</span>
+                </h3>
+                <p className="text-xs text-zinc-500 pt-1">
+                  Configure as regras para que suas próprias visualizações do portal não sejam somadas às métricas das matérias.
+                </p>
+              </div>
+
+              {/* Box 1: Admin Mode Auto Exclusion */}
+              <div className="p-5 rounded-lg border border-zinc-200 bg-zinc-50 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h4 className="font-extrabold text-sm text-zinc-900">Ignorar Leituras do Administrador</h4>
+                    <p className="text-xs text-zinc-500 pt-0.5">
+                      Enquanto você estiver logado no Painel Admin ou com o modo administrador ativo, a contagem de visualizações das matérias será ignorada para você.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleToggleExcludeAdmin(!excludeAdminViews)}
+                    className={`px-4 py-2 rounded-md font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                      excludeAdminViews
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
+                        : 'bg-zinc-300 text-zinc-700 hover:bg-zinc-400'
+                    }`}
+                  >
+                    {excludeAdminViews ? 'Ativado (Recomendado)' : 'Desativado'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Box 2: IP Address Exclusion */}
+              <div className="p-5 rounded-lg border border-zinc-200 bg-zinc-50 space-y-4">
+                <div>
+                  <h4 className="font-extrabold text-sm text-zinc-900 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-blue-600" />
+                    <span>Bloqueio de Contagem por Endereço IP Público</span>
+                  </h4>
+                  <p className="text-xs text-zinc-500 pt-0.5">
+                    Cadastre o IP da sua rede ou escritório. Todas as acessos e leituras vindos dessa rede serão descartados e não afetarão o ranking de "Mais Lidas".
+                  </p>
+                </div>
+
+                {/* Current IP status card */}
+                <div className="p-4 bg-white rounded-md border border-zinc-200 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Seu Endereço IP Atual</span>
+                    <strong className="text-base font-mono font-bold text-zinc-900">
+                      {currentIP ? currentIP : 'Identificando seu IP público...'}
+                    </strong>
+                  </div>
+
+                  {currentIP && (
+                    <button
+                      onClick={handleAddCurrentIP}
+                      disabled={excludedIPs.includes(currentIP)}
+                      className={`px-4 py-2.5 rounded-md font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                        excludedIPs.includes(currentIP)
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-not-allowed'
+                          : 'bg-red-600 hover:bg-red-700 text-white shadow-xs'
+                      }`}
+                    >
+                      {excludedIPs.includes(currentIP) ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span>Seu IP Já Está Excluído</span>
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="w-4 h-4" />
+                          <span>Excluir Meu IP Atual</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Manual IP input */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-700 block">
+                    Adicionar IP Manualmente
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={manualIpInput}
+                      onChange={(e) => setManualIpInput(e.target.value)}
+                      placeholder="Ex: 177.136.24.12"
+                      className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-xs font-mono focus:outline-none focus:border-red-600 bg-white"
+                    />
+                    <button
+                      onClick={handleAddManualIP}
+                      className="bg-zinc-900 hover:bg-black text-white font-bold text-xs px-4 py-2 rounded-md uppercase tracking-wider cursor-pointer"
+                    >
+                      Adicionar IP
+                    </button>
+                  </div>
+                </div>
+
+                {/* Excluded IPs List */}
+                <div className="space-y-2 pt-2 border-t border-zinc-200">
+                  <span className="text-xs font-extrabold uppercase text-zinc-800 block">
+                    IPs Excluídos da Contagem ({excludedIPs.length})
+                  </span>
+                  {excludedIPs.length === 0 ? (
+                    <p className="text-xs text-zinc-400 italic">Nenhum IP cadastrado na lista de bloqueio.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {excludedIPs.map((ip) => (
+                        <div
+                          key={ip}
+                          className="flex items-center justify-between bg-white border border-zinc-200 px-3 py-2 rounded-md shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-red-600" />
+                            <span className="font-mono text-xs font-bold text-zinc-800">{ip}</span>
+                            {ip === currentIP && (
+                              <span className="bg-blue-100 text-blue-700 font-bold text-[9px] px-2 py-0.5 rounded-full uppercase">
+                                Você está aqui
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleRemoveIP(ip)}
+                            className="text-red-600 hover:text-red-800 text-xs font-bold cursor-pointer hover:underline"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

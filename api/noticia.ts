@@ -118,7 +118,7 @@ function formatSocialImage(url: string, protocol: string, host: string): string 
       const subparts = parts[1].split('/');
       const accountId = subparts[0];
       const imagePath = subparts.slice(1).filter((p) => !p.startsWith('tr:')).join('/');
-      return `https://ik.imagekit.io/${accountId}/tr:w-1200,h-630,f-jpg/${imagePath}`;
+      return `https://ik.imagekit.io/${accountId}/${imagePath}?tr=w-1200,h-630,f-jpg`;
     }
   }
 

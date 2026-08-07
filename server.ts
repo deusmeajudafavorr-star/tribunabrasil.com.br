@@ -577,7 +577,7 @@ Conteúdo: ${content || prompt}`;
       return null;
     };
 
-    const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
+    const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg';
 
     const formatSocialImage = (url: string): string => {
       if (!url || typeof url !== 'string' || url.trim() === '' || url.startsWith('data:') || url.startsWith('blob:')) {
@@ -595,7 +595,7 @@ Conteúdo: ${content || prompt}`;
 
       if (img.includes('images.unsplash.com')) {
         const baseUrl = img.split('?')[0];
-        return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80`;
+        return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg`;
       }
 
       return img;

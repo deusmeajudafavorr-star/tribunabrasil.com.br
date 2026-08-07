@@ -11,6 +11,14 @@
       "destination": "/api/noticia?slug=:slug*"
     },
     {
+      "source": "/article/:slug*",
+      "destination": "/api/noticia?slug=:slug*"
+    },
+    {
+      "source": "/",
+      "destination": "/api/noticia"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

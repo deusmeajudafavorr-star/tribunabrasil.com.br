@@ -93,21 +93,23 @@ function findBestMatchingArticle(allArticles: any[], targetSlug: string): any | 
 }
 
 function formatSocialImage(url: string, protocol: string, host: string): string {
-  const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
-  if (!url || typeof url !== 'string' || url.startsWith('data:') || url.startsWith('blob:')) {
+  const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg';
+  if (!url || typeof url !== 'string' || url.trim() === '' || url.startsWith('data:') || url.startsWith('blob:')) {
     return DEFAULT_IMG;
   }
 
   let img = url.trim();
-  if (img.startsWith('/')) {
-    img = `${protocol}://${host}${img}`;
+  if (img.startsWith('//')) {
+    img = `https:${img}`;
+  } else if (img.startsWith('/')) {
+    img = `https://tribunabrasil.online${img}`;
   } else if (img.startsWith('http://')) {
     img = img.replace('http://', 'https://');
   }
 
   if (img.includes('images.unsplash.com')) {
     const baseUrl = img.split('?')[0];
-    return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80`;
+    return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg`;
   }
 
   return img;
@@ -186,26 +188,30 @@ export default async function handler(req: any, res: any) {
 
     let html = rawHtml && rawHtml.includes('</head>') ? rawHtml : DEFAULT_HTML_TEMPLATE;
 
-    const host = req.headers?.['x-forwarded-host'] || req.headers?.host || 'tribunabrasil-com-br.vercel.app';
+    const host = req.headers?.['x-forwarded-host'] || req.headers?.host || 'tribunabrasil.online';
     const protocol = req.headers?.['x-forwarded-proto'] || 'https';
 
-    let title = 'Tribuna Brasil - Portal de Notícias';
-    let rawDesc = 'Acompanhe as últimas notícias do Brasil e do mundo no Tribuna Brasil.';
+    let title = 'Tribuna Brasil - Portal de Notícias do Brasil e do Mundo';
+    let rawDesc = 'Acompanhe as últimas notícias em tempo real sobre Política, Economia, Tecnologia, Esportes e Entretenimento no portal Tribuna Brasil.';
     let rawImg = '';
-    let fullUrl = `${protocol}://${host}/noticia/${cleanSlug || 'home'}`;
+    let fullUrl = `https://tribunabrasil.online/`;
+    let ogType = 'website';
 
     if (article) {
-      title = `${article.title} | Tribuna Brasil`;
+      ogType = 'article';
+      title = `${article.title} - Tribuna Brasil`;
       rawDesc = article.subtitle || article.excerpt || article.title || rawDesc;
       rawImg = article.coverImage || '';
-      fullUrl = `${protocol}://${host}/noticia/${article.slug || article.id || cleanSlug}`;
+      fullUrl = `https://tribunabrasil.online/noticia/${article.slug || article.id || cleanSlug}`;
     } else if (cleanSlug && cleanSlug !== 'home') {
+      ogType = 'article';
       const formattedTitle = cleanSlug
         .split('-')
         .filter(Boolean)
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ');
-      title = `${formattedTitle} | Tribuna Brasil`;
+      title = `${formattedTitle} - Tribuna Brasil`;
+      fullUrl = `https://tribunabrasil.online/noticia/${cleanSlug}`;
     }
 
     const description = rawDesc
@@ -213,40 +219,45 @@ export default async function handler(req: any, res: any) {
       .replace(/"/g, '&quot;')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 220);
+      .slice(0, 200);
 
     const image = formatSocialImage(rawImg, protocol, host);
+    let imageType = 'image/jpeg';
+    if (image.includes('.png')) imageType = 'image/png';
+    else if (image.includes('.webp')) imageType = 'image/webp';
 
     // Replace Title
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
 
     // Clean up any default fallback meta tags
     html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:|description|title)[^"']*["'].*?>/gi, '');
+    html = html.replace(/<link\s+rel=["']canonical["'].*?>/gi, '');
 
-    const pubTime = article?.publishedAt || new Date().toISOString();
-    const category = article?.category || 'Notícias';
+    const pubTime = article?.publishedAt ? new Date(article.publishedAt).toISOString() : new Date().toISOString();
+    const category = article?.category || article?.categoryName || 'Notícias';
 
     const ogTags = `
     <!-- Dynamic Article Meta Tags for Facebook, WhatsApp & Twitter -->
     <link rel="canonical" href="${fullUrl}" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="title" content="${title.replace(/"/g, '&quot;')}" />
     <meta name="description" content="${description}" />
 
     <!-- Open Graph / Facebook / WhatsApp -->
-    <meta property="og:type" content="article" />
+    <meta property="og:type" content="${ogType}" />
     <meta property="og:site_name" content="Tribuna Brasil" />
     <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:url" content="${fullUrl}" />
     <meta property="og:image" content="${image}" />
     <meta property="og:image:secure_url" content="${image}" />
-    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:type" content="${imageType}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:locale" content="pt_BR" />
-    <meta property="article:published_time" content="${pubTime}" />
-    <meta property="article:section" content="${category}" />
+    ${ogType === 'article' ? `<meta property="article:published_time" content="${pubTime}" />` : ''}
+    ${ogType === 'article' ? `<meta property="article:section" content="${category}" />` : ''}
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />

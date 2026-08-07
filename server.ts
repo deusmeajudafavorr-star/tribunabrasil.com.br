@@ -473,30 +473,32 @@ Conteúdo: ${content || prompt}`;
 
   // Helper to inject dynamic Open Graph meta tags into index.html for social media crawlers
   async function renderHtmlWithMeta(req: express.Request, rawHtml: string): Promise<string> {
-    const urlPath = req.path;
-    const query = req.query;
+    const urlPath = req.path || '';
+    const query = req.query || {};
 
     let targetSlug = "";
-    if (urlPath.startsWith("/noticia/")) {
-      targetSlug = urlPath.replace("/noticia/", "").trim();
-    } else if (urlPath.startsWith("/materia/")) {
-      targetSlug = urlPath.replace("/materia/", "").trim();
-    } else if (urlPath.startsWith("/article/")) {
-      targetSlug = urlPath.replace("/article/", "").trim();
+    const cleanPath = urlPath.split('?')[0].replace(/\/+$/, '');
+
+    if (cleanPath.startsWith("/noticia/")) {
+      targetSlug = cleanPath.replace("/noticia/", "").trim();
+    } else if (cleanPath.startsWith("/materia/")) {
+      targetSlug = cleanPath.replace("/materia/", "").trim();
+    } else if (cleanPath.startsWith("/article/")) {
+      targetSlug = cleanPath.replace("/article/", "").trim();
     } else if (query.noticia) {
       targetSlug = String(query.noticia).trim();
     } else if (query.materia) {
       targetSlug = String(query.materia).trim();
     } else if (query.slug) {
       targetSlug = String(query.slug).trim();
-    }
-
-    if (!targetSlug || targetSlug === 'home') {
-      return rawHtml;
+    } else if (cleanPath.length > 1 && !cleanPath.startsWith('/admin') && !cleanPath.startsWith('/api') && !cleanPath.startsWith('/categoria')) {
+      targetSlug = cleanPath.replace(/^\//, '').trim();
     }
 
     try {
-      targetSlug = decodeURIComponent(targetSlug).toLowerCase().trim();
+      if (targetSlug) {
+        targetSlug = decodeURIComponent(targetSlug).toLowerCase().trim();
+      }
     } catch {
       targetSlug = targetSlug.toLowerCase().trim();
     }
@@ -568,22 +570,25 @@ Conteúdo: ${content || prompt}`;
         }
       }
 
-      if (bestScore >= 0.45) {
+      if (bestScore >= 0.4) {
         return bestArticle;
       }
 
       return null;
     };
 
-    const formatSocialImage = (url: string, protocol: string, host: string): string => {
-      const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
-      if (!url || typeof url !== 'string' || url.startsWith('data:') || url.startsWith('blob:')) {
+    const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
+
+    const formatSocialImage = (url: string): string => {
+      if (!url || typeof url !== 'string' || url.trim() === '' || url.startsWith('data:') || url.startsWith('blob:')) {
         return DEFAULT_IMG;
       }
 
       let img = url.trim();
-      if (img.startsWith('/')) {
-        img = `${protocol}://${host}${img}`;
+      if (img.startsWith('//')) {
+        img = `https:${img}`;
+      } else if (img.startsWith('/')) {
+        img = `https://tribunabrasil.online${img}`;
       } else if (img.startsWith('http://')) {
         img = img.replace('http://', 'https://');
       }
@@ -596,7 +601,7 @@ Conteúdo: ${content || prompt}`;
       return img;
     };
 
-    const cleanSlug = normalizeSlug(targetSlug);
+    const cleanSlug = targetSlug ? normalizeSlug(targetSlug) : '';
 
     // Fetch live articles from Firebase RTDB
     let fbArticles: any[] = [];
@@ -613,28 +618,29 @@ Conteúdo: ${content || prompt}`;
     }
 
     const allArticles = [...fbArticles, ...INITIAL_ARTICLES];
-    const matchedArticle = findBestMatchingArticle(allArticles, cleanSlug);
+    const matchedArticle = cleanSlug ? findBestMatchingArticle(allArticles, cleanSlug) : null;
 
-    const host = req.get('host') || 'tribunabrasil-com-br.vercel.app';
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-
-    let title = 'Tribuna Brasil - Portal de Notícias';
-    let rawDesc = 'Acompanhe as últimas notícias do Brasil e do mundo no Tribuna Brasil.';
-    let rawImg = '';
-    let fullUrl = `${protocol}://${host}/noticia/${cleanSlug || 'home'}`;
+    let title = 'Tribuna Brasil - Portal de Notícias do Brasil e do Mundo';
+    let rawDesc = 'Acompanhe as últimas notícias em tempo real sobre Política, Economia, Tecnologia, Esportes e Entretenimento no portal Tribuna Brasil.';
+    let rawImg = DEFAULT_IMG;
+    let canonicalUrl = 'https://tribunabrasil.online/';
+    let ogType = 'website';
 
     if (matchedArticle) {
-      title = `${matchedArticle.title} | Tribuna Brasil`;
+      title = `${matchedArticle.title} - Tribuna Brasil`;
       rawDesc = matchedArticle.subtitle || matchedArticle.excerpt || matchedArticle.title || rawDesc;
-      rawImg = matchedArticle.coverImage || '';
-      fullUrl = `${protocol}://${host}/noticia/${matchedArticle.slug || matchedArticle.id || cleanSlug}`;
-    } else {
+      rawImg = matchedArticle.coverImage || DEFAULT_IMG;
+      canonicalUrl = `https://tribunabrasil.online/noticia/${matchedArticle.slug || matchedArticle.id || cleanSlug}`;
+      ogType = 'article';
+    } else if (cleanSlug && cleanSlug !== 'home') {
       const formattedTitle = targetSlug
         .split('-')
         .filter(Boolean)
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ');
-      title = `${formattedTitle} | Tribuna Brasil`;
+      title = `${formattedTitle} - Tribuna Brasil`;
+      canonicalUrl = `https://tribunabrasil.online/noticia/${cleanSlug}`;
+      ogType = 'article';
     }
 
     const description = rawDesc
@@ -642,24 +648,25 @@ Conteúdo: ${content || prompt}`;
       .replace(/"/g, '&quot;')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 220);
+      .slice(0, 200);
 
-    const image = formatSocialImage(rawImg, protocol as string, host);
+    const image = formatSocialImage(rawImg);
+    let imageType = 'image/jpeg';
+    if (image.includes('.png')) imageType = 'image/png';
+    else if (image.includes('.webp')) imageType = 'image/webp';
 
     let html = rawHtml;
 
-    // Replace Title
-    html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
-
-    // Remove existing default og and twitter tags to prevent duplicate meta tag conflicts
+    // Remove existing meta tags from head to prevent duplication
+    html = html.replace(/<title>.*?<\/title>/gi, '');
     html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:|description|title)[^"']*["'].*?>/gi, '');
+    html = html.replace(/<link\s+rel=["']canonical["'].*?>/gi, '');
 
-    const pubTime = matchedArticle?.publishedAt || new Date().toISOString();
+    const pubTime = matchedArticle?.publishedAt ? new Date(matchedArticle.publishedAt).toISOString() : new Date().toISOString();
     const categoryName = matchedArticle?.categoryName || matchedArticle?.category || 'Notícias';
     const authorName = matchedArticle?.authorName || 'Redação Tribuna Brasil';
-    const canonicalUrl = `https://tribunabrasil.online/noticia/${matchedArticle?.slug || cleanSlug}`;
 
-    // Schema.org NewsArticle JSON-LD for Google News
+    // Schema.org NewsArticle JSON-LD
     const newsArticleSchema = matchedArticle
       ? {
           '@context': 'https://schema.org',
@@ -695,30 +702,31 @@ Conteúdo: ${content || prompt}`;
         }
       : null;
 
-    // Inject complete Open Graph, Twitter Card & Schema.org Meta Tags
+    // Inject complete Open Graph, Twitter Card & Meta Tags
     const ogTags = `
+    <title>${title}</title>
     <!-- Technical SEO & Meta Tags -->
     <link rel="canonical" href="${canonicalUrl}" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="title" content="${title.replace(/"/g, '&quot;')}" />
     <meta name="description" content="${description}" />
 
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:type" content="article" />
+    <!-- Open Graph Meta Tags for Facebook, WhatsApp & Social Sharing -->
+    <meta property="og:type" content="${ogType}" />
     <meta property="og:site_name" content="Tribuna Brasil" />
     <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:url" content="${canonicalUrl}" />
     <meta property="og:image" content="${image}" />
     <meta property="og:image:secure_url" content="${image}" />
-    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:type" content="${imageType}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:locale" content="pt_BR" />
-    <meta property="article:published_time" content="${pubTime}" />
-    <meta property="article:section" content="${categoryName}" />
-    <meta property="article:author" content="${authorName}" />
+    ${ogType === 'article' ? `<meta property="article:published_time" content="${pubTime}" />` : ''}
+    ${ogType === 'article' ? `<meta property="article:section" content="${categoryName}" />` : ''}
+    ${ogType === 'article' ? `<meta property="article:author" content="${authorName}" />` : ''}
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -738,21 +746,75 @@ Conteúdo: ${content || prompt}`;
     return html.replace('</head>', `${ogTags}\n  </head>`);
   }
 
+  // Intercept HTML requests in Express to ensure Open Graph tags are injected for crawlers & users
+  const handleHtmlRequest = async (req: express.Request, res: express.Response, rawHtmlSupplier: () => string) => {
+    try {
+      const rawHtml = rawHtmlSupplier();
+      if (!rawHtml) {
+        return res.status(404).send('Not Found');
+      }
+      const finalHtml = await renderHtmlWithMeta(req, rawHtml);
+      return res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).send(finalHtml);
+    } catch (err) {
+      console.error('Error rendering HTML with meta:', err);
+      return res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).send(rawHtmlSupplier());
+    }
+  };
+
   // Serve static assets or mount Vite dev middleware
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
+      plugins: [
+        {
+          name: "html-meta-transform",
+          transformIndexHtml: {
+            order: "post",
+            handler: async (html, ctx: any) => {
+              try {
+                if (ctx.req) {
+                  return await renderHtmlWithMeta(ctx.req, html);
+                }
+              } catch (e) {
+                console.error("Error in dev html meta transform:", e);
+              }
+              return html;
+            },
+          },
+        },
+      ],
     });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", async (req, res) => {
+
+    // Static files (JS, CSS, images) served without automatic index.html fallback
+    app.use(express.static(distPath, { index: false }));
+
+    // SPA fallback with dynamic Open Graph & Meta tags injection
+    app.get("*", async (req, res, next) => {
+      if (
+        req.path.startsWith("/api") ||
+        req.path === "/sitemap.xml" ||
+        req.path === "/sitemap" ||
+        req.path === "/robots.txt"
+      ) {
+        return next();
+      }
+
       const distIndexPath = path.join(distPath, "index.html");
-      const rawHtml = fs.existsSync(distIndexPath) ? fs.readFileSync(distIndexPath, "utf-8") : "";
-      const finalHtml = await renderHtmlWithMeta(req, rawHtml);
-      res.status(200).set({ "Content-Type": "text/html" }).end(finalHtml || rawHtml);
+      if (fs.existsSync(distIndexPath)) {
+        try {
+          const rawHtml = fs.readFileSync(distIndexPath, "utf-8");
+          const finalHtml = await renderHtmlWithMeta(req, rawHtml);
+          return res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).send(finalHtml);
+        } catch (err) {
+          console.error("Error serving HTML:", err);
+        }
+      }
+      return res.status(404).send("Not found");
     });
   }
 

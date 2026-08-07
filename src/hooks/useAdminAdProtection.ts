@@ -13,30 +13,99 @@ function isAdUrlOrElement(str: string): boolean {
     lower.includes('pl30724881') ||
     lower.includes('f92de4113d9a521b82597653b3117039') ||
     lower.includes('9b6bfab5b05a7b6f867eab4bdf85399b') ||
-    lower.includes('container-de9dfa')
+    lower.includes('container-de9dfa') ||
+    lower.includes('monetag') ||
+    lower.includes('adsterra') ||
+    lower.includes('popunder')
   );
 }
 
-// 1. Block window.open popunders globally during Admin & Login sessions
+// Global flag
+declare global {
+  interface Window {
+    __ADMIN_MODE_ACTIVE?: boolean;
+  }
+}
+
+// 1. Block window.open popunders globally during Admin sessions
 const originalWindowOpen = window.open;
 window.open = function (...args: Parameters<typeof window.open>) {
-  if (document.documentElement.classList.contains('admin-mode-active')) {
-    console.warn('[AdminShield] Blocked window.open popunder during Admin/Login session');
+  if (
+    document.documentElement.classList.contains('admin-mode-active') ||
+    window.__ADMIN_MODE_ACTIVE
+  ) {
+    console.warn('[AdminShield] Blocked window.open popunder during Admin session');
     return null;
   }
   return originalWindowOpen.apply(this, args);
 };
 
-// 2. Monkey-patch DOM insertion methods to prevent ad scripts/iframes from attaching during Admin/Login
+// 2. Intercept addEventListener to block ad click handler registration during Admin
+const originalAddEventListener = EventTarget.prototype.addEventListener;
+EventTarget.prototype.addEventListener = function (
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions
+) {
+  if (window.__ADMIN_MODE_ACTIVE) {
+    if (
+      type === 'click' ||
+      type === 'mousedown' ||
+      type === 'pointerdown' ||
+      type === 'touchstart'
+    ) {
+      if (
+        this === window ||
+        this === document ||
+        this === document.body ||
+        this === document.documentElement
+      ) {
+        // Wrap listener to check if admin mode is active at runtime
+        const originalFn =
+          typeof listener === 'function' ? listener : listener.handleEvent;
+        const wrappedListener = function (e: Event) {
+          if (window.__ADMIN_MODE_ACTIVE) {
+            const target = e.target as HTMLElement | null;
+            if (!target || !target.closest('#root')) {
+              e.stopImmediatePropagation();
+              e.preventDefault();
+              return;
+            }
+          }
+          if (originalFn) {
+            return originalFn.call(this, e);
+          }
+        };
+        return originalAddEventListener.call(
+          this,
+          type,
+          wrappedListener,
+          options
+        );
+      }
+    }
+  }
+  return originalAddEventListener.call(this, type, listener, options);
+};
+
+// 3. Monkey-patch DOM insertion methods to prevent ad scripts/iframes from attaching during Admin
 const originalAppendChild = Node.prototype.appendChild;
 Node.prototype.appendChild = function <T extends Node>(node: T): T {
-  if (document.documentElement.classList.contains('admin-mode-active')) {
+  if (window.__ADMIN_MODE_ACTIVE) {
     if (node instanceof HTMLElement) {
       const src = (node as any).src || '';
       const id = node.id || '';
       const html = node.outerHTML || '';
-      if (isAdUrlOrElement(src) || isAdUrlOrElement(id) || isAdUrlOrElement(html)) {
-        console.warn('[AdminShield] Blocked appendChild of ad script/element:', src || id);
+      if (
+        isAdUrlOrElement(src) ||
+        isAdUrlOrElement(id) ||
+        isAdUrlOrElement(html) ||
+        (this === document.body && node.id !== 'root' && node.tagName !== 'STYLE')
+      ) {
+        console.warn(
+          '[AdminShield] Blocked appendChild of ad script/element:',
+          src || id || node.tagName
+        );
         return node;
       }
     }
@@ -45,14 +114,25 @@ Node.prototype.appendChild = function <T extends Node>(node: T): T {
 };
 
 const originalInsertBefore = Node.prototype.insertBefore;
-Node.prototype.insertBefore = function <T extends Node>(node: T, child: Node | null): T {
-  if (document.documentElement.classList.contains('admin-mode-active')) {
+Node.prototype.insertBefore = function <T extends Node>(
+  node: T,
+  child: Node | null
+): T {
+  if (window.__ADMIN_MODE_ACTIVE) {
     if (node instanceof HTMLElement) {
       const src = (node as any).src || '';
       const id = node.id || '';
       const html = node.outerHTML || '';
-      if (isAdUrlOrElement(src) || isAdUrlOrElement(id) || isAdUrlOrElement(html)) {
-        console.warn('[AdminShield] Blocked insertBefore of ad script/element:', src || id);
+      if (
+        isAdUrlOrElement(src) ||
+        isAdUrlOrElement(id) ||
+        isAdUrlOrElement(html) ||
+        (this === document.body && node.id !== 'root' && node.tagName !== 'STYLE')
+      ) {
+        console.warn(
+          '[AdminShield] Blocked insertBefore of ad script/element:',
+          src || id || node.tagName
+        );
         return node;
       }
     }
@@ -63,12 +143,14 @@ Node.prototype.insertBefore = function <T extends Node>(node: T, child: Node | n
 export function useAdminAdProtection(isAdminActive: boolean) {
   useEffect(() => {
     if (!isAdminActive) {
+      window.__ADMIN_MODE_ACTIVE = false;
       document.body.classList.remove('admin-mode-active');
       document.documentElement.classList.remove('admin-mode-active');
       return;
     }
 
-    // Activate Admin Shield classes
+    // Activate Admin Shield flags & classes
+    window.__ADMIN_MODE_ACTIVE = true;
     document.body.classList.add('admin-mode-active');
     document.documentElement.classList.add('admin-mode-active');
 
@@ -79,7 +161,8 @@ export function useAdminAdProtection(isAdminActive: boolean) {
       if (document.body && document.body.onclick) document.body.onclick = null;
       if ((window as any).onmousedown) (window as any).onmousedown = null;
       if ((document as any).onmousedown) (document as any).onmousedown = null;
-      if (document.body && (document.body as any).onmousedown) (document.body as any).onmousedown = null;
+      if (document.body && (document.body as any).onmousedown)
+        (document.body as any).onmousedown = null;
     };
 
     clearInlineListeners();
@@ -97,7 +180,7 @@ export function useAdminAdProtection(isAdminActive: boolean) {
       /* Ensure #root and all admin modals/forms are fully interactive and on top */
       html.admin-mode-active #root {
         position: relative !important;
-        z-index: 999999 !important;
+        z-index: 9999999 !important;
         pointer-events: auto !important;
       }
 
@@ -143,6 +226,11 @@ export function useAdminAdProtection(isAdminActive: boolean) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        try {
+          target.remove();
+        } catch {
+          // ignore
+        }
         console.warn('[AdminShield] Blocked interaction on ad element outside #root');
       }
     };
@@ -154,7 +242,7 @@ export function useAdminAdProtection(isAdminActive: boolean) {
 
     // Routine purge function for ad elements and scripts outside #root
     const purgeAdNodes = () => {
-      if (!document.documentElement.classList.contains('admin-mode-active')) return;
+      if (!window.__ADMIN_MODE_ACTIVE) return;
 
       clearInlineListeners();
 
@@ -175,7 +263,11 @@ export function useAdminAdProtection(isAdminActive: boolean) {
       // Purge non-root direct body children created dynamically by ad network scripts
       const bodyChildren = Array.from(document.body.children);
       bodyChildren.forEach((node) => {
-        if (node.id !== 'root' && node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
+        if (
+          node.id !== 'root' &&
+          node.tagName !== 'SCRIPT' &&
+          node.tagName !== 'STYLE'
+        ) {
           try {
             (node as HTMLElement).style.setProperty('display', 'none', 'important');
             (node as HTMLElement).style.setProperty('pointer-events', 'none', 'important');
@@ -185,13 +277,25 @@ export function useAdminAdProtection(isAdminActive: boolean) {
           }
         }
       });
+
+      // Remove floating iframes or full-screen overlays
+      const adElements = document.querySelectorAll(
+        'iframe:not(#root iframe), [id*="container-"], [id*="pl307248"], [class*="social-bar"]'
+      );
+      adElements.forEach((el) => {
+        try {
+          el.remove();
+        } catch {
+          // ignore
+        }
+      });
     };
 
     purgeAdNodes();
-    const sweepInterval = setInterval(purgeAdNodes, 200);
+    const sweepInterval = setInterval(purgeAdNodes, 50);
 
     const observer = new MutationObserver(() => {
-      if (document.documentElement.classList.contains('admin-mode-active')) {
+      if (window.__ADMIN_MODE_ACTIVE) {
         purgeAdNodes();
       }
     });
@@ -200,6 +304,7 @@ export function useAdminAdProtection(isAdminActive: boolean) {
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
     return () => {
+      window.__ADMIN_MODE_ACTIVE = false;
       document.body.classList.remove('admin-mode-active');
       document.documentElement.classList.remove('admin-mode-active');
       window.removeEventListener('click', handleCaptureInteraction, true);
@@ -211,4 +316,5 @@ export function useAdminAdProtection(isAdminActive: boolean) {
     };
   }, [isAdminActive]);
 }
+
 

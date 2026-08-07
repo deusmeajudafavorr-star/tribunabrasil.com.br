@@ -5,7 +5,21 @@ export const AdBanner160x300: React.FC = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    if (document.documentElement.classList.contains('admin-mode-active') || window.location.hash.toLowerCase().includes('ferias')) return;
+    const isAdminMode =
+      window.__ADMIN_MODE_ACTIVE ||
+      document.documentElement.classList.contains('admin-mode-active') ||
+      window.location.hash.toLowerCase().includes('ferias') ||
+      window.location.hash.toLowerCase().includes('feiras') ||
+      window.location.hash.toLowerCase().includes('admin') ||
+      window.location.hash.toLowerCase().includes('painel') ||
+      window.location.search.toLowerCase().includes('ferias') ||
+      window.location.search.toLowerCase().includes('feiras') ||
+      window.location.search.toLowerCase().includes('admin') ||
+      window.location.search.toLowerCase().includes('painel') ||
+      window.location.pathname.toLowerCase().includes('admin') ||
+      window.location.pathname.toLowerCase().includes('painel');
+
+    if (isAdminMode) return;
 
     // Clear previous elements
     containerRef.current.innerHTML = '';

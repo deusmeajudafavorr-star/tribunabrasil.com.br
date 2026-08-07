@@ -23,12 +23,22 @@ import { useAdminAdProtection } from './hooks/useAdminAdProtection';
 export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('home');
 
-  // Activate ad shield whenever in admin view mode or hash is ferias/feiras
+  // Activate ad shield whenever in admin view mode or hash/query is ferias/feiras/admin/painel
   const isAdminViewActive =
     viewMode === 'admin' ||
     window.location.hash.toLowerCase().includes('ferias') ||
-    window.location.hash.toLowerCase().includes('feiras');
+    window.location.hash.toLowerCase().includes('feiras') ||
+    window.location.hash.toLowerCase().includes('admin') ||
+    window.location.hash.toLowerCase().includes('painel') ||
+    window.location.search.toLowerCase().includes('ferias') ||
+    window.location.search.toLowerCase().includes('feiras') ||
+    window.location.search.toLowerCase().includes('admin') ||
+    window.location.search.toLowerCase().includes('painel') ||
+    window.location.pathname.toLowerCase().includes('admin') ||
+    window.location.pathname.toLowerCase().includes('painel');
+
   useAdminAdProtection(isAdminViewActive);
+
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -276,7 +286,7 @@ export default function App() {
       />
 
       {/* Header (Rendered unless in Admin) */}
-      {viewMode !== 'admin' && (
+      {!isAdminViewActive && viewMode !== 'admin' && (
         <>
           <PublicAdScripts />
           <Header
@@ -336,7 +346,7 @@ export default function App() {
       </div>
 
       {/* Footer & Footer Ad Banner */}
-      {viewMode !== 'admin' && (
+      {!isAdminViewActive && viewMode !== 'admin' && (
         <>
           <FooterAdBanner />
           <Footer

@@ -113,8 +113,13 @@ function formatSocialImage(url: string, protocol: string, host: string): string 
   }
 
   if (img.includes('ik.imagekit.io')) {
-    const baseUrl = img.split('?')[0];
-    return `${baseUrl}?tr=f-jpg,w-1200,h-630,q-80`;
+    const parts = img.split('?')[0].split('ik.imagekit.io/');
+    if (parts.length === 2) {
+      const subparts = parts[1].split('/');
+      const accountId = subparts[0];
+      const imagePath = subparts.slice(1).filter((p) => !p.startsWith('tr:')).join('/');
+      return `https://ik.imagekit.io/${accountId}/tr:w-1200,h-630,f-jpg/${imagePath}`;
+    }
   }
 
   return img;
@@ -289,7 +294,13 @@ export default async function handler(req: any, res: any) {
     <meta property="twitter:image" content="${image}" />
   `;
 
-    html = html.replace('</head>', `${ogTags}\n  </head>`);
+    if (html.includes('<meta charset="UTF-8" />')) {
+      html = html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n${ogTags}`);
+    } else if (html.includes('<meta charset="utf-8">')) {
+      html = html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n${ogTags}`);
+    } else {
+      html = html.replace('<head>', `<head>\n${ogTags}`);
+    }
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');

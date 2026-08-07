@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Article, Category } from '../types';
 import { SidebarAdBanner } from './SidebarAdBanner';
+import { AdBanner160x300 } from './AdBanner160x300';
 
 interface NewsHomeProps {
   articles: Article[];
@@ -202,8 +203,11 @@ export const NewsHome: React.FC<NewsHomeProps> = ({
           )}
         </div>
 
-        {/* Right Sidebar: Banner Ad + "Mais Lidas" Ranking + Special Box */}
+        {/* Right Sidebar: Banner Ads + "Mais Lidas" Ranking + Special Box */}
         <aside className="lg:col-span-4 space-y-6">
+          {/* 160x300 Ad Banner */}
+          <AdBanner160x300 />
+
           {/* Sidebar Banner Ad */}
           <SidebarAdBanner />
 

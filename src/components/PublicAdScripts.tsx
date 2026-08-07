@@ -2,6 +2,16 @@ import React, { useEffect } from 'react';
 
 export const PublicAdScripts: React.FC = () => {
   useEffect(() => {
+    // Never inject ad scripts if Admin mode is active or hash is ferias/feiras
+    const isAdminMode =
+      document.documentElement.classList.contains('admin-mode-active') ||
+      window.location.hash.toLowerCase().includes('ferias') ||
+      window.location.hash.toLowerCase().includes('feiras');
+
+    if (isAdminMode) {
+      return;
+    }
+
     const scriptsToInject: Array<{ id: string; setup: () => HTMLScriptElement }> = [
       {
         id: 'ad-script-quge5',
@@ -68,7 +78,7 @@ export const PublicAdScripts: React.FC = () => {
 
       // Purge any dynamically appended floating ad containers, social bars, popups, or iframes
       const elementsToPurge = document.querySelectorAll(
-        '[id*="container-"], [id*="pl30724813"], [class*="social-bar"], iframe:not(#root iframe)'
+        '[id*="container-"], [id*="pl30724813"], [id*="pl30724881"], [class*="social-bar"], iframe:not(#root iframe)'
       );
       elementsToPurge.forEach((el) => {
         try {
@@ -82,3 +92,4 @@ export const PublicAdScripts: React.FC = () => {
 
   return null;
 };
+

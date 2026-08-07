@@ -5,6 +5,7 @@ export const AdBanner160x300: React.FC = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    if (document.documentElement.classList.contains('admin-mode-active') || window.location.hash.toLowerCase().includes('ferias')) return;
 
     // Clear previous elements
     containerRef.current.innerHTML = '';

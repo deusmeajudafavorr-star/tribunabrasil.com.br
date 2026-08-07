@@ -23,8 +23,12 @@ import { useAdminAdProtection } from './hooks/useAdminAdProtection';
 export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('home');
 
-  // Activate ad shield whenever in admin view mode
-  useAdminAdProtection(viewMode === 'admin');
+  // Activate ad shield whenever in admin view mode or hash is ferias/feiras
+  const isAdminViewActive =
+    viewMode === 'admin' ||
+    window.location.hash.toLowerCase().includes('ferias') ||
+    window.location.hash.toLowerCase().includes('feiras');
+  useAdminAdProtection(isAdminViewActive);
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<User[]>([]);

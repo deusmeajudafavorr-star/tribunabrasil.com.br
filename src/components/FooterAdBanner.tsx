@@ -5,6 +5,7 @@ export const FooterAdBanner: React.FC = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    if (document.documentElement.classList.contains('admin-mode-active') || window.location.hash.toLowerCase().includes('ferias')) return;
 
     // Clear previous contents if re-rendered
     containerRef.current.innerHTML = '';

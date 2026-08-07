@@ -577,7 +577,7 @@ Conteúdo: ${content || prompt}`;
       return null;
     };
 
-    const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg';
+    const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
 
     const formatSocialImage = (url: string): string => {
       if (!url || typeof url !== 'string' || url.trim() === '' || url.startsWith('data:') || url.startsWith('blob:')) {
@@ -588,14 +588,14 @@ Conteúdo: ${content || prompt}`;
       if (img.startsWith('//')) {
         img = `https:${img}`;
       } else if (img.startsWith('/')) {
-        img = `https://tribunabrasil.online${img}`;
+        img = `https://www.tribunabrasil.online${img}`;
       } else if (img.startsWith('http://')) {
         img = img.replace('http://', 'https://');
       }
 
       if (img.includes('images.unsplash.com')) {
         const baseUrl = img.split('?')[0];
-        return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg`;
+        return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80`;
       }
 
       return img;
@@ -718,6 +718,7 @@ Conteúdo: ${content || prompt}`;
     <meta property="og:description" content="${description}" />
     <meta property="og:url" content="${canonicalUrl}" />
     <meta property="og:image" content="${image}" />
+    <meta property="og:image:url" content="${image}" />
     <meta property="og:image:secure_url" content="${image}" />
     <meta property="og:image:type" content="${imageType}" />
     <meta property="og:image:width" content="1200" />
@@ -730,11 +731,16 @@ Conteúdo: ${content || prompt}`;
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="${canonicalUrl}" />
     <meta name="twitter:site" content="@tribunabrasil" />
+    <meta name="twitter:creator" content="@tribunabrasil" />
+    <meta name="twitter:domain" content="tribunabrasil.online" />
+    <meta name="twitter:url" content="${canonicalUrl}" />
     <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${image}" />
+    <meta name="twitter:image:src" content="${image}" />
+    <meta name="twitter:image:alt" content="${title.replace(/"/g, '&quot;')}" />
+    <meta property="twitter:image" content="${image}" />
 
     ${
       newsArticleSchema

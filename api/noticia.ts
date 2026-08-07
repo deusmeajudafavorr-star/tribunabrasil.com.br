@@ -93,7 +93,7 @@ function findBestMatchingArticle(allArticles: any[], targetSlug: string): any | 
 }
 
 function formatSocialImage(url: string, protocol: string, host: string): string {
-  const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg';
+  const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
   if (!url || typeof url !== 'string' || url.trim() === '' || url.startsWith('data:') || url.startsWith('blob:')) {
     return DEFAULT_IMG;
   }
@@ -102,14 +102,14 @@ function formatSocialImage(url: string, protocol: string, host: string): string 
   if (img.startsWith('//')) {
     img = `https:${img}`;
   } else if (img.startsWith('/')) {
-    img = `https://tribunabrasil.online${img}`;
+    img = `https://${host}${img}`;
   } else if (img.startsWith('http://')) {
     img = img.replace('http://', 'https://');
   }
 
   if (img.includes('images.unsplash.com')) {
     const baseUrl = img.split('?')[0];
-    return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80&fm=jpg&.jpg`;
+    return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80`;
   }
 
   return img;
@@ -188,13 +188,14 @@ export default async function handler(req: any, res: any) {
 
     let html = rawHtml && rawHtml.includes('</head>') ? rawHtml : DEFAULT_HTML_TEMPLATE;
 
-    const host = req.headers?.['x-forwarded-host'] || req.headers?.host || 'tribunabrasil.online';
+    const host = req.headers?.['x-forwarded-host'] || req.headers?.host || 'www.tribunabrasil.online';
     const protocol = req.headers?.['x-forwarded-proto'] || 'https';
+    const baseUrl = `${protocol}://${host}`;
 
     let title = 'Tribuna Brasil - Portal de Notícias do Brasil e do Mundo';
     let rawDesc = 'Acompanhe as últimas notícias em tempo real sobre Política, Economia, Tecnologia, Esportes e Entretenimento no portal Tribuna Brasil.';
     let rawImg = '';
-    let fullUrl = `https://tribunabrasil.online/`;
+    let fullUrl = `${baseUrl}/`;
     let ogType = 'website';
 
     if (article) {
@@ -202,7 +203,7 @@ export default async function handler(req: any, res: any) {
       title = `${article.title} - Tribuna Brasil`;
       rawDesc = article.subtitle || article.excerpt || article.title || rawDesc;
       rawImg = article.coverImage || '';
-      fullUrl = `https://tribunabrasil.online/noticia/${article.slug || article.id || cleanSlug}`;
+      fullUrl = `${baseUrl}/noticia/${article.slug || article.id || cleanSlug}`;
     } else if (cleanSlug && cleanSlug !== 'home') {
       ogType = 'article';
       const formattedTitle = cleanSlug
@@ -211,7 +212,7 @@ export default async function handler(req: any, res: any) {
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ');
       title = `${formattedTitle} - Tribuna Brasil`;
-      fullUrl = `https://tribunabrasil.online/noticia/${cleanSlug}`;
+      fullUrl = `${baseUrl}/noticia/${cleanSlug}`;
     }
 
     const description = rawDesc
@@ -226,8 +227,11 @@ export default async function handler(req: any, res: any) {
     if (image.includes('.png')) imageType = 'image/png';
     else if (image.includes('.webp')) imageType = 'image/webp';
 
+    const escapedTitle = title.replace(/"/g, '&quot;');
+    const escapedDesc = description.replace(/"/g, '&quot;');
+
     // Replace Title
-    html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
+    html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapedTitle}</title>`);
 
     // Clean up any default fallback meta tags
     html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:|description|title)[^"']*["'].*?>/gi, '');
@@ -240,32 +244,38 @@ export default async function handler(req: any, res: any) {
     <!-- Dynamic Article Meta Tags for Facebook, WhatsApp & Twitter -->
     <link rel="canonical" href="${fullUrl}" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-    <meta name="title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta name="description" content="${description}" />
+    <meta name="title" content="${escapedTitle}" />
+    <meta name="description" content="${escapedDesc}" />
 
     <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:type" content="${ogType}" />
     <meta property="og:site_name" content="Tribuna Brasil" />
-    <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta property="og:description" content="${description}" />
+    <meta property="og:title" content="${escapedTitle}" />
+    <meta property="og:description" content="${escapedDesc}" />
     <meta property="og:url" content="${fullUrl}" />
     <meta property="og:image" content="${image}" />
+    <meta property="og:image:url" content="${image}" />
     <meta property="og:image:secure_url" content="${image}" />
     <meta property="og:image:type" content="${imageType}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="${title.replace(/"/g, '&quot;')}" />
+    <meta property="og:image:alt" content="${escapedTitle}" />
     <meta property="og:locale" content="pt_BR" />
     ${ogType === 'article' ? `<meta property="article:published_time" content="${pubTime}" />` : ''}
     ${ogType === 'article' ? `<meta property="article:section" content="${category}" />` : ''}
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="${fullUrl}" />
     <meta name="twitter:site" content="@tribunabrasil" />
-    <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:creator" content="@tribunabrasil" />
+    <meta name="twitter:domain" content="${host.replace(/^www\./, '')}" />
+    <meta name="twitter:url" content="${fullUrl}" />
+    <meta name="twitter:title" content="${escapedTitle}" />
+    <meta name="twitter:description" content="${escapedDesc}" />
     <meta name="twitter:image" content="${image}" />
+    <meta name="twitter:image:src" content="${image}" />
+    <meta name="twitter:image:alt" content="${escapedTitle}" />
+    <meta property="twitter:image" content="${image}" />
   `;
 
     html = html.replace('</head>', `${ogTags}\n  </head>`);

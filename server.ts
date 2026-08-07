@@ -662,11 +662,19 @@ Conteúdo: ${content || prompt}`;
 
     const image = formatSocialImage(rawImg);
     let imageType = 'image/jpeg';
-    if (image.includes('tr=f-jpg') || image.includes('fm=jpg') || image.includes('.jpg') || image.includes('.jpeg')) {
+    if (
+      image.includes('f-jpg') ||
+      image.includes('f-jpeg') ||
+      image.includes('fm=jpg') ||
+      image.includes('fm=jpeg') ||
+      image.includes('format=jpg') ||
+      image.includes('.jpg') ||
+      image.includes('.jpeg')
+    ) {
       imageType = 'image/jpeg';
-    } else if (image.includes('tr=f-png') || image.includes('fm=png') || image.includes('.png')) {
+    } else if (image.includes('f-png') || image.includes('fm=png') || image.includes('.png')) {
       imageType = 'image/png';
-    } else if (image.includes('tr=f-webp') || image.includes('fm=webp') || image.includes('.webp')) {
+    } else if (image.includes('f-webp') || image.includes('fm=webp') || image.includes('.webp')) {
       imageType = 'image/webp';
     }
 

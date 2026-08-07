@@ -21,7 +21,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     let canonicalUrl = DOMAIN + '/';
     let ogType = 'website';
     let ogImage =
-      'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+      'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?fm=jpg&fit=crop&w=1200&h=630&q=80';
     let schemaJson: any = null;
 
     if (viewMode === 'article' && article) {
@@ -33,7 +33,11 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
         article.title;
       canonicalUrl = `${DOMAIN}/noticia/${slug}`;
       ogType = 'article';
-      ogImage = article.coverImage || ogImage;
+      let rawImg = article.coverImage || ogImage;
+      if (rawImg.includes('images.unsplash.com')) {
+        rawImg = rawImg.split('?')[0] + '?fm=jpg&fit=crop&w=1200&h=630&q=80';
+      }
+      ogImage = rawImg;
 
       // Schema.org NewsArticle for Google News
       schemaJson = {
@@ -165,7 +169,11 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     setMetaTag('property', 'og:description', cleanDesc);
     setMetaTag('property', 'og:url', canonicalUrl);
     setMetaTag('property', 'og:image', ogImage);
+    setMetaTag('property', 'og:image:url', ogImage);
     setMetaTag('property', 'og:image:secure_url', ogImage);
+    setMetaTag('property', 'og:image:type', ogImage.includes('.png') ? 'image/png' : 'image/jpeg');
+    setMetaTag('property', 'og:image:width', '1200');
+    setMetaTag('property', 'og:image:height', '630');
     setMetaTag('property', 'og:locale', 'pt_BR');
 
     if (ogType === 'article' && article) {
@@ -177,9 +185,14 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     // Twitter Cards
     setMetaTag('name', 'twitter:card', 'summary_large_image');
     setMetaTag('name', 'twitter:site', '@tribunabrasil');
+    setMetaTag('name', 'twitter:creator', '@tribunabrasil');
+    setMetaTag('name', 'twitter:domain', 'tribunabrasil.online');
+    setMetaTag('name', 'twitter:url', canonicalUrl);
     setMetaTag('name', 'twitter:title', title);
     setMetaTag('name', 'twitter:description', cleanDesc);
     setMetaTag('name', 'twitter:image', ogImage);
+    setMetaTag('name', 'twitter:image:src', ogImage);
+    setMetaTag('name', 'twitter:image:alt', title);
 
     // Schema.org JSON-LD
     let scriptEl = document.getElementById('schema-org-jsonld') as HTMLScriptElement | null;

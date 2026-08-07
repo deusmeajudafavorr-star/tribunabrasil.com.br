@@ -41,6 +41,117 @@ self.lary = ""
 importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')`);
   });
 
+  // --- TECHNICAL SEO ENDPOINTS: robots.txt & dynamic sitemap.xml ---
+  app.get("/robots.txt", (_req, res) => {
+    res.header("Content-Type", "text/plain");
+    res.header("Cache-Control", "public, max-age=86400");
+    res.send(`User-agent: *
+Allow: /
+
+Sitemap: https://tribunabrasil.online/sitemap.xml`);
+  });
+
+  app.get(["/sitemap.xml", "/sitemap"], async (_req, res) => {
+    const DOMAIN = "https://tribunabrasil.online";
+
+    let fbArticles: any[] = [];
+    try {
+      const fbRes = await fetch('https://notaziavoz-default-rtdb.firebaseio.com/articles.json');
+      if (fbRes.ok) {
+        const data = await fbRes.json();
+        if (data) {
+          fbArticles = Array.isArray(data) ? data.filter(Boolean) : Object.values(data).filter(Boolean);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao carregar matérias do Firebase para o Sitemap:', err);
+    }
+
+    const allArticles = [...fbArticles, ...INITIAL_ARTICLES];
+    const articleMap = new Map();
+    for (const a of allArticles) {
+      if (!a) continue;
+      const key = a.slug || a.id;
+      if (!articleMap.has(key)) {
+        articleMap.set(key, a);
+      }
+    }
+
+    const categories = [
+      'brasil', 'politica', 'economia', 'tecnologia', 'esportes', 'entretenimento', 'mundo'
+    ];
+
+    const escapeXml = (unsafe: string) => {
+      return (unsafe || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    };
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>${DOMAIN}/</loc>
+    <changefreq>always</changefreq>
+    <priority>1.0</priority>
+  </url>`;
+
+    for (const cat of categories) {
+      xml += `
+  <url>
+    <loc>${DOMAIN}/categoria/${cat}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+    }
+
+    for (const article of articleMap.values()) {
+      if (article.status && article.status !== 'published') continue;
+      const slug = article.slug || article.id;
+      const url = `${DOMAIN}/noticia/${slug}`;
+      const pubDate = article.publishedAt ? new Date(article.publishedAt).toISOString() : new Date().toISOString();
+      const title = escapeXml(article.title || '');
+      const imgUrl = article.coverImage ? escapeXml(article.coverImage) : '';
+
+      xml += `
+  <url>
+    <loc>${url}</loc>
+    <lastmod>${pubDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <news:news>
+      <news:publication>
+        <news:name>Tribuna Brasil</news:name>
+        <news:language>pt</news:language>
+      </news:publication>
+      <news:publication_date>${pubDate}</news:publication_date>
+      <news:title>${title}</news:title>
+    </news:news>`;
+
+      if (imgUrl) {
+        xml += `
+    <image:image>
+      <image:loc>${imgUrl}</image:loc>
+      <image:title>${title}</image:title>
+    </image:image>`;
+      }
+
+      xml += `
+  </url>`;
+    }
+
+    xml += `
+</urlset>`;
+
+    res.header("Content-Type", "application/xml; charset=utf-8");
+    res.header("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    res.send(xml);
+  });
+
   // --- WSJ NewsAPI Rate Limiting & Integration ---
   interface RateLimitTracker {
     date: string;
@@ -507,20 +618,60 @@ Conteúdo: ${content || prompt}`;
     html = html.replace(/<meta\s+(property|name)=["'](og:|twitter:|description|title)[^"']*["'].*?>/gi, '');
 
     const pubTime = matchedArticle?.publishedAt || new Date().toISOString();
-    const category = matchedArticle?.category || 'Notícias';
+    const categoryName = matchedArticle?.categoryName || matchedArticle?.category || 'Notícias';
+    const authorName = matchedArticle?.authorName || 'Redação Tribuna Brasil';
+    const canonicalUrl = `https://tribunabrasil.online/noticia/${matchedArticle?.slug || cleanSlug}`;
 
-    // Inject complete Open Graph & Twitter Card Meta Tags for large social cards (Facebook, WhatsApp, Twitter, LinkedIn)
+    // Schema.org NewsArticle JSON-LD for Google News
+    const newsArticleSchema = matchedArticle
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'NewsArticle',
+          'mainEntityOfPage': {
+            '@type': 'WebPage',
+            '@id': canonicalUrl,
+          },
+          'headline': matchedArticle.title,
+          'description': description,
+          'image': [image],
+          'datePublished': pubTime,
+          'dateModified': pubTime,
+          'author': {
+            '@type': 'Person',
+            'name': authorName,
+            'url': 'https://tribunabrasil.online',
+          },
+          'publisher': {
+            '@type': 'NewsMediaOrganization',
+            'name': 'Tribuna Brasil',
+            'url': 'https://tribunabrasil.online',
+            'logo': {
+              '@type': 'ImageObject',
+              'url': 'https://tribunabrasil.online/favicon.svg',
+              'width': 600,
+              'height': 60,
+            },
+          },
+          'articleSection': categoryName,
+          'keywords': (matchedArticle.tags || []).join(', '),
+          'inLanguage': 'pt-BR',
+        }
+      : null;
+
+    // Inject complete Open Graph, Twitter Card & Schema.org Meta Tags
     const ogTags = `
-    <!-- Dynamic Article Open Graph Meta Tags for Social Media Crawlers -->
-    <link rel="canonical" href="${fullUrl}" />
+    <!-- Technical SEO & Meta Tags -->
+    <link rel="canonical" href="${canonicalUrl}" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="title" content="${title.replace(/"/g, '&quot;')}" />
     <meta name="description" content="${description}" />
 
+    <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Tribuna Brasil" />
     <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:description" content="${description}" />
-    <meta property="og:url" content="${fullUrl}" />
+    <meta property="og:url" content="${canonicalUrl}" />
     <meta property="og:image" content="${image}" />
     <meta property="og:image:secure_url" content="${image}" />
     <meta property="og:image:type" content="image/jpeg" />
@@ -529,14 +680,22 @@ Conteúdo: ${content || prompt}`;
     <meta property="og:image:alt" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:locale" content="pt_BR" />
     <meta property="article:published_time" content="${pubTime}" />
-    <meta property="article:section" content="${category}" />
+    <meta property="article:section" content="${categoryName}" />
+    <meta property="article:author" content="${authorName}" />
 
+    <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="${fullUrl}" />
+    <meta name="twitter:url" content="${canonicalUrl}" />
     <meta name="twitter:site" content="@tribunabrasil" />
     <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${image}" />
+
+    ${
+      newsArticleSchema
+        ? `<script type="application/ld+json" id="schema-org-newsarticle">${JSON.stringify(newsArticleSchema)}</script>`
+        : ''
+    }
     `;
 
     return html.replace('</head>', `${ogTags}\n  </head>`);

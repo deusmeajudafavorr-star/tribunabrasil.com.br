@@ -470,6 +470,10 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
           <img
             src={article.coverImage}
             alt={article.title}
+            loading="eager"
+            // @ts-ignore
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-auto max-h-[500px] object-cover"
           />
           {(article.imageCaption || article.imageCredit) && (

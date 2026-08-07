@@ -16,6 +16,7 @@ import {
   subscribeCategories,
   subscribeUsers,
 } from './services/firebase';
+import { SEOHead } from './components/SEOHead';
 import { Article, Category, User, ViewMode } from './types';
 import { useAdminAdProtection } from './hooks/useAdminAdProtection';
 
@@ -259,8 +260,17 @@ export default function App() {
       )
     : [];
 
+  // Active category object for SEO
+  const activeCategory = categories.find((c) => c.id === activeCategoryId);
+
   return (
     <div className="min-h-screen bg-zinc-100 flex flex-col font-sans text-zinc-900 antialiased selection:bg-red-600 selection:text-white">
+      <SEOHead
+        article={viewMode === 'article' ? selectedArticle : null}
+        categoryName={activeCategory ? activeCategory.name : null}
+        viewMode={viewMode}
+      />
+
       {/* Header (Rendered unless in Admin) */}
       {viewMode !== 'admin' && (
         <>

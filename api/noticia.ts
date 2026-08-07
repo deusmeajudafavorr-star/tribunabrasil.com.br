@@ -122,7 +122,13 @@ function formatSocialImage(url: string, protocol: string, host: string): string 
     }
   }
 
-  return img;
+  if (img.includes(host) || img.includes('tribunabrasil.online')) {
+    return img;
+  }
+
+  // If the image is hosted on gstatic, googleusercontent, or any other external domain that might block social crawlers via robots.txt,
+  // proxy it through our domain's public OG image endpoint so Twitterbot fetches it directly from our domain!
+  return `https://${host}/api/og-image?url=${encodeURIComponent(img)}`;
 }
 
 async function fetchFirebaseArticles(): Promise<any[]> {

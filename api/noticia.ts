@@ -93,7 +93,7 @@ function findBestMatchingArticle(allArticles: any[], targetSlug: string): any | 
 }
 
 function formatSocialImage(url: string, protocol: string, host: string): string {
-  const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
+  const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?fm=jpg&fit=crop&w=1200&h=630&q=80';
   if (!url || typeof url !== 'string' || url.trim() === '' || url.startsWith('data:') || url.startsWith('blob:')) {
     return DEFAULT_IMG;
   }
@@ -109,7 +109,12 @@ function formatSocialImage(url: string, protocol: string, host: string): string 
 
   if (img.includes('images.unsplash.com')) {
     const baseUrl = img.split('?')[0];
-    return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80`;
+    return `${baseUrl}?fm=jpg&fit=crop&w=1200&h=630&q=80`;
+  }
+
+  if (img.includes('ik.imagekit.io')) {
+    const baseUrl = img.split('?')[0];
+    return `${baseUrl}?tr=f-jpg,w-1200,h-630,q-80`;
   }
 
   return img;
@@ -188,7 +193,8 @@ export default async function handler(req: any, res: any) {
 
     let html = rawHtml && rawHtml.includes('</head>') ? rawHtml : DEFAULT_HTML_TEMPLATE;
 
-    const host = req.headers?.['x-forwarded-host'] || req.headers?.host || 'www.tribunabrasil.online';
+    const rawHost = req.headers?.['x-forwarded-host'] || req.headers?.host || 'www.tribunabrasil.online';
+    const host = rawHost === 'tribunabrasil.online' ? 'www.tribunabrasil.online' : rawHost;
     const protocol = req.headers?.['x-forwarded-proto'] || 'https';
     const baseUrl = `${protocol}://${host}`;
 
@@ -224,8 +230,13 @@ export default async function handler(req: any, res: any) {
 
     const image = formatSocialImage(rawImg, protocol, host);
     let imageType = 'image/jpeg';
-    if (image.includes('.png')) imageType = 'image/png';
-    else if (image.includes('.webp')) imageType = 'image/webp';
+    if (image.includes('tr=f-jpg') || image.includes('fm=jpg') || image.includes('.jpg') || image.includes('.jpeg')) {
+      imageType = 'image/jpeg';
+    } else if (image.includes('tr=f-png') || image.includes('fm=png') || image.includes('.png')) {
+      imageType = 'image/png';
+    } else if (image.includes('tr=f-webp') || image.includes('fm=webp') || image.includes('.webp')) {
+      imageType = 'image/webp';
+    }
 
     const escapedTitle = title.replace(/"/g, '&quot;');
     const escapedDesc = description.replace(/"/g, '&quot;');

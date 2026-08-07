@@ -577,7 +577,7 @@ Conteúdo: ${content || prompt}`;
       return null;
     };
 
-    const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&h=630&q=80';
+    const DEFAULT_IMG = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?fm=jpg&fit=crop&w=1200&h=630&q=80';
 
     const formatSocialImage = (url: string): string => {
       if (!url || typeof url !== 'string' || url.trim() === '' || url.startsWith('data:') || url.startsWith('blob:')) {
@@ -595,7 +595,12 @@ Conteúdo: ${content || prompt}`;
 
       if (img.includes('images.unsplash.com')) {
         const baseUrl = img.split('?')[0];
-        return `${baseUrl}?auto=format&fit=crop&w=1200&h=630&q=80`;
+        return `${baseUrl}?fm=jpg&fit=crop&w=1200&h=630&q=80`;
+      }
+
+      if (img.includes('ik.imagekit.io')) {
+        const baseUrl = img.split('?')[0];
+        return `${baseUrl}?tr=f-jpg,w-1200,h-630,q-80`;
       }
 
       return img;
@@ -623,14 +628,14 @@ Conteúdo: ${content || prompt}`;
     let title = 'Tribuna Brasil - Portal de Notícias do Brasil e do Mundo';
     let rawDesc = 'Acompanhe as últimas notícias em tempo real sobre Política, Economia, Tecnologia, Esportes e Entretenimento no portal Tribuna Brasil.';
     let rawImg = DEFAULT_IMG;
-    let canonicalUrl = 'https://tribunabrasil.online/';
+    let canonicalUrl = 'https://www.tribunabrasil.online/';
     let ogType = 'website';
 
     if (matchedArticle) {
       title = `${matchedArticle.title} - Tribuna Brasil`;
       rawDesc = matchedArticle.subtitle || matchedArticle.excerpt || matchedArticle.title || rawDesc;
       rawImg = matchedArticle.coverImage || DEFAULT_IMG;
-      canonicalUrl = `https://tribunabrasil.online/noticia/${matchedArticle.slug || matchedArticle.id || cleanSlug}`;
+      canonicalUrl = `https://www.tribunabrasil.online/noticia/${matchedArticle.slug || matchedArticle.id || cleanSlug}`;
       ogType = 'article';
     } else if (cleanSlug && cleanSlug !== 'home') {
       const formattedTitle = targetSlug
@@ -639,7 +644,7 @@ Conteúdo: ${content || prompt}`;
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ');
       title = `${formattedTitle} - Tribuna Brasil`;
-      canonicalUrl = `https://tribunabrasil.online/noticia/${cleanSlug}`;
+      canonicalUrl = `https://www.tribunabrasil.online/noticia/${cleanSlug}`;
       ogType = 'article';
     }
 
@@ -652,8 +657,13 @@ Conteúdo: ${content || prompt}`;
 
     const image = formatSocialImage(rawImg);
     let imageType = 'image/jpeg';
-    if (image.includes('.png')) imageType = 'image/png';
-    else if (image.includes('.webp')) imageType = 'image/webp';
+    if (image.includes('tr=f-jpg') || image.includes('fm=jpg') || image.includes('.jpg') || image.includes('.jpeg')) {
+      imageType = 'image/jpeg';
+    } else if (image.includes('tr=f-png') || image.includes('fm=png') || image.includes('.png')) {
+      imageType = 'image/png';
+    } else if (image.includes('tr=f-webp') || image.includes('fm=webp') || image.includes('.webp')) {
+      imageType = 'image/webp';
+    }
 
     let html = rawHtml;
 
@@ -790,6 +800,21 @@ Conteúdo: ${content || prompt}`;
           },
         },
       ],
+    });
+
+    app.get(['/noticia/*', '/materia/*', '/article/*'], async (req, res, next) => {
+      try {
+        const indexHtmlPath = path.join(process.cwd(), 'index.html');
+        if (fs.existsSync(indexHtmlPath)) {
+          let rawHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
+          rawHtml = await vite.transformIndexHtml(req.originalUrl, rawHtml);
+          const finalHtml = await renderHtmlWithMeta(req, rawHtml);
+          return res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).send(finalHtml);
+        }
+      } catch (err) {
+        console.error("Error serving article in dev mode:", err);
+      }
+      next();
     });
 
     app.use(vite.middlewares);

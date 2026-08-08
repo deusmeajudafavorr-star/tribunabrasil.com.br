@@ -87,11 +87,7 @@ Allow: /
 Sitemap: https://tribunabrasil.online/sitemap.xml`);
   });
 
-  app.get("/sitemap.xml", async (_req, res) => {
-    generateSitemap(res);
-  });
-
-  app.get("/sitemap", async (_req, res) => {
+  app.get(["/sitemap.xml", "/sitemap", "/sitemap.xml/", "/sitemap/"], async (_req, res) => {
     generateSitemap(res);
   });
 
@@ -886,8 +882,7 @@ Conteúdo: ${content || prompt}`;
     app.get("*", async (req, res, next) => {
       if (
         req.path.startsWith("/api") ||
-        req.path === "/sitemap.xml" ||
-        req.path === "/sitemap" ||
+        req.path.startsWith("/sitemap") ||
         req.path === "/robots.txt"
       ) {
         return next();

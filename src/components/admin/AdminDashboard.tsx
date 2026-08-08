@@ -98,6 +98,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
+  // Search Console & Indexing Helper State
+  const [copiedGscId, setCopiedGscId] = useState<string | null>(null);
+  const [copiedNewsSitemap, setCopiedNewsSitemap] = useState(false);
+  const [copiedMainSitemap, setCopiedMainSitemap] = useState(false);
+
+  const handleCopySearchConsoleUrl = (art: Article) => {
+    const slug = art.slug || art.id;
+    const fullUrl = `https://tribunabrasil.online/noticia/${slug}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedGscId(art.id);
+    setTimeout(() => setCopiedGscId(null), 3000);
+  };
+
+  const handleCopyNewsSitemap = () => {
+    navigator.clipboard.writeText('https://tribunabrasil.online/sitemap-news.xml');
+    setCopiedNewsSitemap(true);
+    setTimeout(() => setCopiedNewsSitemap(false), 3000);
+  };
+
+  const handleCopyMainSitemap = () => {
+    navigator.clipboard.writeText('https://tribunabrasil.online/sitemap.xml');
+    setCopiedMainSitemap(true);
+    setTimeout(() => setCopiedMainSitemap(false), 3000);
+  };
+
   // Article Modal State
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
@@ -829,6 +854,84 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
 
+              {/* Central de Indexação Rápida (Google News & Search Console) */}
+              <div className="bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 text-white p-5 rounded-lg border border-zinc-700 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-700/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-red-600/20 text-red-500 rounded-lg">
+                      <Zap className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-sm uppercase tracking-wide text-white">Estratégia de Indexação Rápida (Google News)</h4>
+                      <p className="text-[11px] text-zinc-400">Sitemaps automáticos e ferramentas de inspeção manual para acelerar indexação</p>
+                    </div>
+                  </div>
+                  <a
+                    href="https://search.google.com/search-console"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Abrir Search Console</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-zinc-800/80 p-3.5 rounded-md border border-zinc-700 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase text-amber-400 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> Sitemap Google News (Últimas 48h)
+                      </span>
+                      <button
+                        onClick={handleCopyNewsSitemap}
+                        className="px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        {copiedNewsSitemap ? <Check className="w-3 h-3 text-emerald-400" /> : <Save className="w-3 h-3" />}
+                        <span>{copiedNewsSitemap ? 'Copiado!' : 'Copiar URL'}</span>
+                      </button>
+                    </div>
+                    <code className="text-[11px] text-zinc-300 block font-mono bg-zinc-900 p-1.5 rounded truncate border border-zinc-800">
+                      https://tribunabrasil.online/sitemap-news.xml
+                    </code>
+                    <p className="text-[10px] text-zinc-400 leading-normal">
+                      Sitemap exclusivo com namespace <code>news:news</code> contendo automaticamente matérias das últimas 48 horas.
+                    </p>
+                  </div>
+
+                  <div className="bg-zinc-800/80 p-3.5 rounded-md border border-zinc-700 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase text-blue-400 flex items-center gap-1">
+                        <Globe className="w-3 h-3" /> Sitemap Geral do Portal
+                      </span>
+                      <button
+                        onClick={handleCopyMainSitemap}
+                        className="px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        {copiedMainSitemap ? <Check className="w-3 h-3 text-emerald-400" /> : <Save className="w-3 h-3" />}
+                        <span>{copiedMainSitemap ? 'Copiado!' : 'Copiar URL'}</span>
+                      </button>
+                    </div>
+                    <code className="text-[11px] text-zinc-300 block font-mono bg-zinc-900 p-1.5 rounded truncate border border-zinc-800">
+                      https://tribunabrasil.online/sitemap.xml
+                    </code>
+                    <p className="text-[10px] text-zinc-400 leading-normal">
+                      Sitemap completo do site listando todas as páginas institucionais, categorias e histórico de publicações.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-zinc-900/90 p-3 rounded-md border border-zinc-800 text-[11px] text-zinc-300 space-y-1">
+                  <strong className="text-xs text-white block uppercase font-black">Como Pedir Indexação Manual no Google em 10 Segundos:</strong>
+                  <ol className="list-decimal list-inside space-y-0.5 text-zinc-400 text-[11px]">
+                    <li>Acesse a lista abaixo e clique no botão verde <span className="text-emerald-400 font-bold">"GSC Indexar"</span> da notícia recém-publicada.</li>
+                    <li>O link oficial será copiado instantaneamente para sua área de transferência.</li>
+                    <li>Abra o Search Console, cole a URL na barra de busca de topo <em className="text-zinc-200">"Inspecionar qualquer URL"</em> e clique em <strong className="text-white">"Solicitar Indexação"</strong>.</li>
+                  </ol>
+                </div>
+              </div>
+
               {/* Filters Bar */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-zinc-50 p-3 rounded-md border border-zinc-200">
                 <div className="relative">
@@ -917,6 +1020,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {art.views.toLocaleString('pt-BR')}
                         </td>
                         <td className="py-3 px-3 text-right space-x-1">
+                          <button
+                            onClick={() => handleCopySearchConsoleUrl(art)}
+                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md cursor-pointer transition-colors inline-flex items-center gap-1 font-bold text-[10px] border border-emerald-200 shadow-2xs"
+                            title="Copiar URL exata para colar na inspeção de URL do Google Search Console"
+                          >
+                            {copiedGscId === art.id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-emerald-700">URL Copiada!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>GSC Indexar</span>
+                              </>
+                            )}
+                          </button>
                           <button
                             onClick={() => onOpenArticlePreview(art)}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md cursor-pointer"

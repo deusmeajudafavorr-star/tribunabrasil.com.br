@@ -90,6 +90,59 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
     setMetaTag('name', 'twitter:description', article.subtitle || article.excerpt || article.title);
     setMetaTag('name', 'twitter:image', article.coverImage);
 
+    // Canonical link update
+    let canonicalEl = document.querySelector('link[rel="canonical"]');
+    if (!canonicalEl) {
+      canonicalEl = document.createElement('link');
+      canonicalEl.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalEl);
+    }
+    canonicalEl.setAttribute('href', shareableUrl);
+
+    // Schema.org NewsArticle JSON-LD update/injection
+    const pubDateIso = article.publishedAt ? new Date(article.publishedAt).toISOString() : new Date().toISOString();
+    const newsArticleSchemaData = {
+      '@context': 'https://schema.org',
+      '@type': 'NewsArticle',
+      'mainEntityOfPage': {
+        '@type': 'WebPage',
+        '@id': shareableUrl,
+      },
+      'headline': article.title,
+      'description': article.subtitle || article.excerpt || article.title,
+      'image': [article.coverImage],
+      'datePublished': pubDateIso,
+      'dateModified': pubDateIso,
+      'author': {
+        '@type': 'Person',
+        'name': article.authorName || 'Redação Tribuna Brasil',
+        'url': 'https://tribunabrasil.online',
+      },
+      'publisher': {
+        '@type': 'NewsMediaOrganization',
+        'name': 'Tribuna Brasil',
+        'url': 'https://tribunabrasil.online',
+        'logo': {
+          '@type': 'ImageObject',
+          'url': 'https://tribunabrasil.online/favicon.svg',
+          'width': 600,
+          'height': 60,
+        },
+      },
+      'articleSection': article.categoryName || 'Notícias',
+      'keywords': (article.tags || []).join(', '),
+      'inLanguage': 'pt-BR',
+    };
+
+    let schemaScript = document.getElementById('schema-org-newsarticle');
+    if (!schemaScript) {
+      schemaScript = document.createElement('script');
+      schemaScript.id = 'schema-org-newsarticle';
+      schemaScript.setAttribute('type', 'application/ld+json');
+      document.head.appendChild(schemaScript);
+    }
+    schemaScript.textContent = JSON.stringify(newsArticleSchemaData);
+
     // Ensure URL pathname is clean
     const targetPath = `/noticia/${slug}`;
     if (window.location.pathname !== targetPath) {

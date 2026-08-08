@@ -77,45 +77,50 @@ self.lary = ""
 importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')`);
   });
 
-  // --- TECHNICAL SEO ENDPOINTS: robots.txt & dynamic sitemap.xml ---
+  // --- TECHNICAL SEO ENDPOINTS: robots.txt & dynamic sitemap.xml & sitemap-news.xml ---
   app.get("/robots.txt", (_req, res) => {
     res.header("Content-Type", "text/plain");
     res.header("Cache-Control", "public, max-age=86400");
     res.send(`User-agent: *
 Allow: /
 
-Sitemap: https://tribunabrasil.online/sitemap.xml`);
+Sitemap: https://tribunabrasil.online/sitemap.xml
+Sitemap: https://tribunabrasil.online/sitemap-news.xml`);
   });
 
   app.get(["/sitemap.xml", "/sitemap", "/sitemap.xml/", "/sitemap/"], async (_req, res) => {
     generateSitemap(res);
   });
 
-  async function generateSitemap(res: any) {
-    const DOMAIN = "https://tribunabrasil.online";
+  app.get(["/sitemap-news.xml", "/sitemap-news", "/sitemap-news.xml/", "/sitemap-news/"], async (_req, res) => {
+    generateNewsSitemap(res);
+  });
 
-    const safeIsoDate = (dateVal: any) => {
-      try {
-        if (!dateVal) return new Date().toISOString();
-        const d = new Date(dateVal);
-        if (isNaN(d.getTime())) return new Date().toISOString();
-        return d.toISOString();
-      } catch {
-        return new Date().toISOString();
-      }
-    };
+  const DOMAIN = "https://tribunabrasil.online";
 
-    const escapeXml = (unsafe: string) => {
-      if (!unsafe) return '';
-      return String(unsafe)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;')
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
-    };
+  const safeIsoDate = (dateVal: any) => {
+    try {
+      if (!dateVal) return new Date().toISOString();
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return new Date().toISOString();
+      return d.toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  };
 
+  const escapeXml = (unsafe: string) => {
+    if (!unsafe) return '';
+    return String(unsafe)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;')
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+  };
+
+  async function fetchAllArticlesForSitemap() {
     let fbArticles: any[] = [];
     try {
       const fbRes = await fetch('https://notaziavoz-default-rtdb.firebaseio.com/articles.json');
@@ -129,17 +134,95 @@ Sitemap: https://tribunabrasil.online/sitemap.xml`);
       console.error('Erro ao carregar matérias do Firebase para o Sitemap:', err);
     }
 
+    const allArticles = [...fbArticles, ...INITIAL_ARTICLES];
+    const articleMap = new Map();
+    for (const a of allArticles) {
+      if (!a || (a.status && a.status !== 'published')) continue;
+      const key = a.slug || a.id;
+      if (key && !articleMap.has(key)) {
+        articleMap.set(key, a);
+      }
+    }
+    return Array.from(articleMap.values());
+  }
+
+  // Official Google News Sitemap (Must contain articles published within last 48h according to Google specifications)
+  async function generateNewsSitemap(res: any) {
     try {
-      const allArticles = [...fbArticles, ...INITIAL_ARTICLES];
-      const articleMap = new Map();
-      for (const a of allArticles) {
-        if (!a) continue;
-        const key = a.slug || a.id;
-        if (key && !articleMap.has(key)) {
-          articleMap.set(key, a);
-        }
+      const articles = await fetchAllArticlesForSitemap();
+      const now = Date.now();
+      const fortyEightHoursMs = 48 * 60 * 60 * 1000;
+
+      // Filter articles published in the last 48 hours
+      let newsArticles = articles.filter((art) => {
+        const pubTime = new Date(art.publishedAt).getTime();
+        return !isNaN(pubTime) && (now - pubTime) <= fortyEightHoursMs;
+      });
+
+      // Fallback: If no articles found in exact last 48h, serve the 10 most recent articles to avoid an empty sitemap
+      if (newsArticles.length === 0) {
+        newsArticles = [...articles]
+          .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+          .slice(0, 10);
       }
 
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">`;
+
+      for (const article of newsArticles) {
+        const slug = article.slug || article.id;
+        if (!slug) continue;
+
+        const url = `${DOMAIN}/noticia/${escapeXml(slug)}`;
+        const pubDate = safeIsoDate(article.publishedAt);
+        const title = escapeXml(article.title || 'Notícia');
+        const imgUrl = article.coverImage ? escapeXml(article.coverImage) : '';
+
+        xml += `
+  <url>
+    <loc>${url}</loc>
+    <lastmod>${pubDate}</lastmod>
+    <news:news>
+      <news:publication>
+        <news:name>Tribuna Brasil</news:name>
+        <news:language>pt</news:language>
+      </news:publication>
+      <news:publication_date>${pubDate}</news:publication_date>
+      <news:title>${title}</news:title>
+    </news:news>`;
+
+        if (imgUrl) {
+          xml += `
+    <image:image>
+      <image:loc>${imgUrl}</image:loc>
+      <image:title>${title}</image:title>
+    </image:image>`;
+        }
+
+        xml += `
+  </url>`;
+      }
+
+      xml += `
+</urlset>`;
+
+      res.header("Content-Type", "application/xml; charset=utf-8");
+      res.header("Cache-Control", "public, max-age=600, s-maxage=600");
+      res.send(xml);
+    } catch (error) {
+      console.error('Erro na geração do Sitemap News:', error);
+      res.header("Content-Type", "application/xml; charset=utf-8");
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+</urlset>`);
+    }
+  }
+
+  async function generateSitemap(res: any) {
+    try {
+      const articles = await fetchAllArticlesForSitemap();
       const categories = [
         'brasil', 'politica', 'economia', 'tecnologia', 'esportes', 'entretenimento', 'mundo'
       ];
@@ -165,8 +248,7 @@ Sitemap: https://tribunabrasil.online/sitemap.xml`);
   </url>`;
       }
 
-      for (const article of articleMap.values()) {
-        if (article.status && article.status !== 'published') continue;
+      for (const article of articles) {
         const slug = article.slug || article.id;
         if (!slug) continue;
 
@@ -206,7 +288,7 @@ Sitemap: https://tribunabrasil.online/sitemap.xml`);
 </urlset>`;
 
       res.header("Content-Type", "application/xml; charset=utf-8");
-      res.header("Cache-Control", "public, max-age=3600, s-maxage=3600");
+      res.header("Cache-Control", "public, max-age=1800, s-maxage=1800");
       res.send(xml);
     } catch (error) {
       console.error('Erro na geração do Sitemap:', error);

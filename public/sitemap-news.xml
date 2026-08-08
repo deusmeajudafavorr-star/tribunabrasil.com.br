@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://tribunabrasil.online/noticia/confira-a-lista-atualizada-as-10-pessoas-mais-ricas-do-mundo-em-agosto-de-2026</loc>
+    <lastmod>2026-08-07T14:32:47.881Z</lastmod>
+    <news:news>
+      <news:publication>
+        <news:name>Tribuna Brasil</news:name>
+        <news:language>pt</news:language>
+      </news:publication>
+      <news:publication_date>2026-08-07T14:32:47.881Z</news:publication_date>
+      <news:title>Confira a lista atualizada: as 10 pessoas mais ricas do mundo em agosto de 2026</news:title>
+    </news:news>
+    <image:image>
+      <image:loc>https://encrypted-tbn0.gstatic.com/licensed-image?q=tbn:ANd9GcT3av0nfbhVE59FNbJp84l_4eoIAXkQeh66uoFpdLrYkdL8RGqbtZ_ydsEiF-QiAIrjtxy6khpZ624iFGA</image:loc>
+      <image:title>Confira a lista atualizada: as 10 pessoas mais ricas do mundo em agosto de 2026</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://tribunabrasil.online/noticia/atencao-a-defesa-civil-emite-alerta-extremo-para-o-rio-de-janeiro</loc>
+    <lastmod>2026-08-07T20:34:30.018Z</lastmod>
+    <news:news>
+      <news:publication>
+        <news:name>Tribuna Brasil</news:name>
+        <news:language>pt</news:language>
+      </news:publication>
+      <news:publication_date>2026-08-07T20:34:30.018Z</news:publication_date>
+      <news:title>ATENÇÃO: A Defesa Civil emite alerta extremo para o Rio de Janeiro.</news:title>
+    </news:news>
+    <image:image>
+      <image:loc>https://pbs.twimg.com/media/HPIYKT6WQAMc7j4?format=jpg&amp;name=large</image:loc>
+      <image:title>ATENÇÃO: A Defesa Civil emite alerta extremo para o Rio de Janeiro.</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://tribunabrasil.online/noticia/trump-s-election-agenda-just-hit-a-wall</loc>
+    <lastmod>2026-08-08T14:47:21.192Z</lastmod>
+    <news:news>
+      <news:publication>
+        <news:name>Tribuna Brasil</news:name>
+        <news:language>pt</news:language>
+      </news:publication>
+      <news:publication_date>2026-08-08T14:47:21.192Z</news:publication_date>
+      <news:title>TRUMP’S ELECTION AGENDA JUST HIT A WALL</news:title>
+    </news:news>
+    <image:image>
+      <image:loc>https://imagens.publico.pt/imagens.aspx/2108100?tp=UH&amp;db=&amp;type=&amp;w=960&amp;h=540&amp;act=cropResize</image:loc>
+      <image:title>TRUMP’S ELECTION AGENDA JUST HIT A WALL</image:title>
+    </image:image>
+  </url>
+</urlset>

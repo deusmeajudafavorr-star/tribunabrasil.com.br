@@ -19,6 +19,7 @@ import {
 import { Article, Comment } from '../types';
 import { storage } from '../services/storage';
 import { subscribeComments } from '../services/firebase';
+import { InArticleAdBanner } from './InArticleAdBanner';
 
 interface ArticleViewProps {
   article: Article;
@@ -488,9 +489,10 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
         <div
           className={`p-6 sm:p-10 rounded-xl border shadow-xs transition-colors duration-200 space-y-6 ${themeClasses[readingTheme]}`}
         >
-          {article.content.split('\n\n').map((paragraph, index) => {
+          {article.content.split('\n\n').flatMap((paragraph, index, array) => {
+            let el: React.ReactNode;
             if (paragraph.startsWith('### ')) {
-              return (
+              el = (
                 <h3
                   key={index}
                   className="text-xl sm:text-2xl font-black pt-4 pb-1 border-b-2 border-red-600 uppercase tracking-tight text-red-600"
@@ -498,9 +500,8 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                   {paragraph.replace('### ', '')}
                 </h3>
               );
-            }
-            if (paragraph.startsWith('> ')) {
-              return (
+            } else if (paragraph.startsWith('> ')) {
+              el = (
                 <blockquote
                   key={index}
                   className="p-4 my-4 bg-red-50 border-l-4 border-red-600 text-zinc-900 italic font-medium rounded-r-md"
@@ -508,19 +509,29 @@ export const ArticleView: React.FC<ArticleViewProps> = ({
                   {paragraph.replace('> ', '')}
                 </blockquote>
               );
-            }
-            if (paragraph.startsWith('1. ') || paragraph.startsWith('- ')) {
-              return (
+            } else if (paragraph.startsWith('1. ') || paragraph.startsWith('- ')) {
+              el = (
                 <div key={index} className="pl-4 border-l-2 border-zinc-300 my-2 space-y-1 font-medium">
                   <p className={fontClasses[fontSize]}>{paragraph}</p>
                 </div>
               );
+            } else {
+              el = (
+                <p key={index} className={`${fontClasses[fontSize]} font-normal leading-relaxed`}>
+                  {paragraph}
+                </p>
+              );
             }
-            return (
-              <p key={index} className={`${fontClasses[fontSize]} font-normal leading-relaxed`}>
-                {paragraph}
-              </p>
-            );
+
+            // Insert in-article ad banner between finished paragraphs (e.g., after paragraph index 1 and index 4)
+            if (index === 1 || (index === 4 && array.length > 5)) {
+              return [
+                el,
+                <InArticleAdBanner key={`in-article-ad-${index}`} />
+              ];
+            }
+
+            return [el];
           })}
 
           {/* Article Tags */}
